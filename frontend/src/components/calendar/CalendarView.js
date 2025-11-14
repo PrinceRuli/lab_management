@@ -1,271 +1,297 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, momentLocalizer } from 'react-big-calendar';
-import moment from 'moment';
-import axios from 'axios';
-import { useAuth } from '../../context/AuthContext';
-import 'react-big-calendar/lib/css/react-big-calendar.css';
 
-const localizer = momentLocalizer(moment);
+const CalendarView = ({ laboratory, bookings = [], onDateSelect, onBookingSelect }) => {
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [view, setView] = useState('month'); // 'month' or 'week'
 
-const CalendarView = () => {
-  const { user } = useAuth();
-  const [events, setEvents] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [laboratories, setLaboratories] = useState([]);
-  const [filters, setFilters] = useState({
-    laboratory: 'all',
-    view: 'month'
-  });
+  // Get current month and year
+  const currentMonth = currentDate.getMonth();
+  const currentYear = currentDate.getFullYear();
 
-  useEffect(() => {
-    fetchLaboratories();
-    fetchCalendarEvents();
-  }, [filters]);
+  // Generate days in month
+  const getDaysInMonth = (year, month) => {
+    return new Date(year, month + 1, 0).getDate();
+  };
 
-  const fetchLaboratories = async () => {
-    try {
-      const response = await axios.get('http://localhost:5001/api/laboratories');
-      setLaboratories(response.data.data);
-    } catch (error) {
-      console.error('Error fetching laboratories:', error);
+  // Get first day of month
+  const getFirstDayOfMonth = (year, month) => {
+    return new Date(year, month, 1).getDay();
+  };
+
+  // Generate calendar days
+  const generateCalendarDays = () => {
+    const daysInMonth = getDaysInMonth(currentYear, currentMonth);
+    const firstDay = getFirstDayOfMonth(currentYear, currentMonth);
+    const days = [];
+
+    // Add empty cells for days before the first day of month
+    for (let i = 0; i < firstDay; i++) {
+      days.push(null);
+    }
+
+    // Add days of the month
+    for (let day = 1; day <= daysInMonth; day++) {
+      const date = new Date(currentYear, currentMonth, day);
+      days.push(date);
+    }
+
+    return days;
+  };
+
+  // Navigate to previous month
+  const prevMonth = () => {
+    setCurrentDate(new Date(currentYear, currentMonth - 1, 1));
+  };
+
+  // Navigate to next month
+  const nextMonth = () => {
+    setCurrentDate(new Date(currentYear, currentMonth + 1, 1));
+  };
+
+  // Go to today
+  const goToToday = () => {
+    setCurrentDate(new Date());
+    setSelectedDate(new Date());
+  };
+
+  // Check if date has bookings
+  const getBookingsForDate = (date) => {
+    if (!date) return [];
+    
+    const dateString = date.toISOString().split('T')[0];
+    return bookings.filter(booking => booking.date === dateString);
+  };
+
+  // Check if date is today
+  const isToday = (date) => {
+    if (!date) return false;
+    const today = new Date();
+    return date.toDateString() === today.toDateString();
+  };
+
+  // Check if date is selected
+  const isSelected = (date) => {
+    if (!date || !selectedDate) return false;
+    return date.toDateString() === selectedDate.toDateString();
+  };
+
+  // Handle date click
+  const handleDateClick = (date) => {
+    if (!date) return;
+    
+    setSelectedDate(date);
+    if (onDateSelect) {
+      onDateSelect(date);
     }
   };
 
-  const fetchCalendarEvents = async () => {
-    try {
-      setLoading(true);
-      const params = new URLSearchParams();
-      if (filters.laboratory !== 'all') {
-        params.append('laboratory', filters.laboratory);
-      }
-
-      const response = await axios.get(`http://localhost:5001/api/bookings/calendar?${params}`);
-      setEvents(response.data.data);
-    } catch (error) {
-      console.error('Error fetching calendar events:', error);
-    } finally {
-      setLoading(false);
-    }
+  // Format time for display
+  const formatTime = (timeString) => {
+    return timeString.replace(/:00$/, '');
   };
 
-  const eventStyleGetter = (event) => {
-    const backgroundColor = event.color || '#3B82F6';
-    const style = {
-      backgroundColor: backgroundColor,
-      borderRadius: '4px',
-      opacity: 0.8,
-      color: 'white',
-      border: '0px',
-      display: 'block',
-      fontSize: '12px'
+  // Get booking status color
+  const getBookingStatusColor = (status) => {
+    const colors = {
+      confirmed: 'bg-green-100 text-green-800 border-green-200',
+      pending: 'bg-amber-100 text-amber-800 border-amber-200',
+      cancelled: 'bg-red-100 text-red-800 border-red-200'
     };
-    return { style };
+    return colors[status] || 'bg-gray-100 text-gray-800 border-gray-200';
   };
 
-  const handleSelectEvent = (event) => {
-    alert(`
-      Laboratory: ${event.laboratory} (${event.labCode})
-      Purpose: ${event.purpose}
-      User: ${event.user}
-      Time: ${moment(event.start).format('HH:mm')} - ${moment(event.end).format('HH:mm')}
-      Attendees: ${event.attendees}
-      Status: ${event.status}
-    `);
-  };
-
-  const handleSelectSlot = (slotInfo) => {
-    if (user?.permissions?.canCreateBookings) {
-      const date = moment(slotInfo.start).format('YYYY-MM-DD');
-      const startTime = moment(slotInfo.start).format('HH:mm');
-      const endTime = moment(slotInfo.end).format('HH:mm');
-      
-      alert(`Create booking for:\nDate: ${date}\nTime: ${startTime} - ${endTime}`);
-      // You can redirect to booking form here
-      // window.location.href = `/book?date=${date}&start=${startTime}&end=${endTime}`;
-    } else {
-      alert('You need permission to create bookings');
-    }
-  };
-
-  const CustomToolbar = (toolbar) => {
-    const goToBack = () => {
-      toolbar.onNavigate('PREV');
-    };
-
-    const goToNext = () => {
-      toolbar.onNavigate('NEXT');
-    };
-
-    const goToCurrent = () => {
-      toolbar.onNavigate('TODAY');
-    };
-
-    const changeView = (view) => {
-      toolbar.onView(view);
-      setFilters(prev => ({ ...prev, view }));
-    };
-
-    return (
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 p-4 bg-white rounded-lg shadow border">
-        <div className="flex items-center space-x-2 mb-4 md:mb-0">
-          <button
-            className="btn btn-sm bg-gray-200 hover:bg-gray-300"
-            onClick={goToBack}
-          >
-            ‹
-          </button>
-          <button
-            className="btn btn-sm bg-gray-200 hover:bg-gray-300"
-            onClick={goToCurrent}
-          >
-            Today
-          </button>
-          <button
-            className="btn btn-sm bg-gray-200 hover:bg-gray-300"
-            onClick={goToNext}
-          >
-            ›
-          </button>
-          <span className="text-lg font-bold ml-2">
-            {moment(toolbar.date).format('MMMM YYYY')}
-          </span>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          <select
-            value={filters.laboratory}
-            onChange={(e) => setFilters({ ...filters, laboratory: e.target.value })}
-            className="border border-gray-300 rounded px-3 py-1 text-sm focus:ring-2 focus:ring-cyan-500"
-          >
-            <option value="all">All Laboratories</option>
-            {laboratories.map(lab => (
-              <option key={lab._id} value={lab._id}>
-                {lab.name}
-              </option>
-            ))}
-          </select>
-
-          <div className="flex bg-gray-100 rounded-lg p-1">
-            {['month', 'week', 'day', 'agenda'].map(view => (
-              <button
-                key={view}
-                className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
-                  toolbar.view === view
-                    ? 'bg-cyan-600 text-white'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-                onClick={() => changeView(view)}
-              >
-                {view.charAt(0).toUpperCase() + view.slice(1)}
-              </button>
-            ))}
-          </div>
-
-          <button
-            onClick={fetchCalendarEvents}
-            className="bg-cyan-600 text-white px-3 py-1 rounded text-sm hover:bg-cyan-700"
-          >
-            Refresh
-          </button>
-        </div>
-      </div>
-    );
-  };
-
-  if (loading) {
-    return (
-      <div className="p-6 text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-500 mx-auto"></div>
-        <p className="mt-2 text-gray-600">Loading calendar...</p>
-      </div>
-    );
-  }
+  const calendarDays = generateCalendarDays();
+  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   return (
-    <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Laboratory Calendar</h1>
-        <p className="text-gray-600">
-          View all laboratory bookings and schedules in one place
-        </p>
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+      {/* Calendar Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center space-x-4">
+          <h3 className="text-xl font-bold text-gray-900">
+            {monthNames[currentMonth]} {currentYear}
+          </h3>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={prevMonth}
+              className="p-2 text-gray-600 hover:text-cyan-600 hover:bg-cyan-50 rounded-lg transition-colors duration-200"
+            >
+              ←
+            </button>
+            <button
+              onClick={goToToday}
+              className="px-3 py-1 text-sm text-cyan-600 bg-cyan-50 rounded-lg hover:bg-cyan-100 transition-colors duration-200"
+            >
+              Today
+            </button>
+            <button
+              onClick={nextMonth}
+              className="p-2 text-gray-600 hover:text-cyan-600 hover:bg-cyan-50 rounded-lg transition-colors duration-200"
+            >
+              →
+            </button>
+          </div>
+        </div>
+
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => setView('month')}
+            className={`px-3 py-1 text-sm rounded-lg transition-colors duration-200 ${
+              view === 'month' 
+                ? 'bg-cyan-600 text-white' 
+                : 'text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            Month
+          </button>
+          <button
+            onClick={() => setView('week')}
+            className={`px-3 py-1 text-sm rounded-lg transition-colors duration-200 ${
+              view === 'week' 
+                ? 'bg-cyan-600 text-white' 
+                : 'text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            Week
+          </button>
+        </div>
       </div>
+
+      {/* Day Names Header */}
+      <div className="grid grid-cols-7 gap-1 mb-2">
+        {dayNames.map(day => (
+          <div key={day} className="text-center text-sm font-medium text-gray-500 py-2">
+            {day}
+          </div>
+        ))}
+      </div>
+
+      {/* Calendar Grid */}
+      <div className="grid grid-cols-7 gap-1">
+        {calendarDays.map((date, index) => {
+          const dateBookings = getBookingsForDate(date);
+          const isCurrentDay = isToday(date);
+          const isSelectedDay = isSelected(date);
+
+          return (
+            <div
+              key={index}
+              onClick={() => handleDateClick(date)}
+              className={`min-h-24 p-2 border rounded-lg cursor-pointer transition-all duration-200 ${
+                !date
+                  ? 'border-transparent'
+                  : isSelectedDay
+                  ? 'border-cyan-500 bg-cyan-50'
+                  : isCurrentDay
+                  ? 'border-cyan-200 bg-cyan-25'
+                  : 'border-gray-200 hover:border-cyan-300 hover:bg-cyan-25'
+              }`}
+            >
+              {date && (
+                <>
+                  {/* Date Number */}
+                  <div className={`text-sm font-medium mb-1 ${
+                    isSelectedDay 
+                      ? 'text-cyan-700' 
+                      : isCurrentDay
+                      ? 'text-cyan-600'
+                      : 'text-gray-700'
+                  }`}>
+                    {date.getDate()}
+                  </div>
+
+                  {/* Bookings */}
+                  <div className="space-y-1">
+                    {dateBookings.slice(0, 2).map((booking, bookingIndex) => (
+                      <div
+                        key={bookingIndex}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (onBookingSelect) {
+                            onBookingSelect(booking);
+                          }
+                        }}
+                        className={`text-xs p-1 rounded border ${getBookingStatusColor(booking.status)} cursor-pointer hover:opacity-80 transition-opacity duration-200`}
+                        title={`${booking.title} (${formatTime(booking.startTime)} - ${formatTime(booking.endTime)})`}
+                      >
+                        <div className="font-medium truncate">
+                          {booking.title}
+                        </div>
+                        <div className="truncate">
+                          {formatTime(booking.startTime)} - {formatTime(booking.endTime)}
+                        </div>
+                      </div>
+                    ))}
+                    
+                    {dateBookings.length > 2 && (
+                      <div className="text-xs text-gray-500 text-center">
+                        +{dateBookings.length - 2} more
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Selected Date Details */}
+      {selectedDate && (
+        <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+          <h4 className="font-semibold text-gray-900 mb-3">
+            Bookings for {selectedDate.toLocaleDateString()}
+          </h4>
+          
+          {getBookingsForDate(selectedDate).length === 0 ? (
+            <p className="text-gray-500 text-sm">No bookings for this date</p>
+          ) : (
+            <div className="space-y-2">
+              {getBookingsForDate(selectedDate).map((booking, index) => (
+                <div
+                  key={index}
+                  className={`p-3 rounded-lg border ${getBookingStatusColor(booking.status)} cursor-pointer hover:shadow-sm transition-shadow duration-200`}
+                  onClick={() => onBookingSelect && onBookingSelect(booking)}
+                >
+                  <div className="flex justify-between items-start mb-1">
+                    <h5 className="font-medium text-sm">{booking.title}</h5>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      booking.status === 'confirmed' 
+                        ? 'bg-green-200 text-green-800'
+                        : booking.status === 'pending'
+                        ? 'bg-amber-200 text-amber-800'
+                        : 'bg-red-200 text-red-800'
+                    }`}>
+                      {booking.status}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-600 mb-1">{booking.description}</p>
+                  <div className="flex justify-between text-xs text-gray-500">
+                    <span>🕒 {formatTime(booking.startTime)} - {formatTime(booking.endTime)}</span>
+                    <span>👤 {booking.participants} people</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Legend */}
-      <div className="flex flex-wrap gap-4 mb-6 p-4 bg-white rounded-lg shadow border">
-        <div className="flex items-center">
-          <div className="w-4 h-4 bg-green-500 rounded mr-2"></div>
-          <span className="text-sm text-gray-700">Approved</span>
+      <div className="mt-6 flex items-center justify-center space-x-4 text-xs">
+        <div className="flex items-center space-x-1">
+          <div className="w-3 h-3 bg-green-100 border border-green-200 rounded"></div>
+          <span className="text-gray-600">Confirmed</span>
         </div>
-        <div className="flex items-center">
-          <div className="w-4 h-4 bg-amber-500 rounded mr-2"></div>
-          <span className="text-sm text-gray-700">Pending</span>
+        <div className="flex items-center space-x-1">
+          <div className="w-3 h-3 bg-amber-100 border border-amber-200 rounded"></div>
+          <span className="text-gray-600">Pending</span>
         </div>
-        <div className="flex items-center">
-          <div className="w-4 h-4 bg-red-500 rounded mr-2"></div>
-          <span className="text-sm text-gray-700">Rejected</span>
-        </div>
-        <div className="flex items-center">
-          <div className="w-4 h-4 bg-blue-500 rounded mr-2"></div>
-          <span className="text-sm text-gray-700">New Booking</span>
-        </div>
-      </div>
-
-      {/* Calendar */}
-      <div className="bg-white rounded-lg shadow border">
-        <Calendar
-          localizer={localizer}
-          events={events}
-          startAccessor="start"
-          endAccessor="end"
-          style={{ height: 600 }}
-          eventPropGetter={eventStyleGetter}
-          onSelectEvent={handleSelectEvent}
-          onSelectSlot={handleSelectSlot}
-          selectable={user?.permissions?.canCreateBookings}
-          components={{
-            toolbar: CustomToolbar
-          }}
-          views={['month', 'week', 'day', 'agenda']}
-          defaultView="month"
-          messages={{
-            next: "Next",
-            previous: "Previous",
-            today: "Today",
-            month: "Month",
-            week: "Week",
-            day: "Day",
-            agenda: "Agenda",
-            date: "Date",
-            time: "Time",
-            event: "Event",
-            noEventsInRange: "No bookings in this range"
-          }}
-        />
-      </div>
-
-      {/* Quick Stats */}
-      <div className="mt-6 grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded-lg shadow border text-center">
-          <div className="text-2xl font-bold text-gray-900">{events.length}</div>
-          <div className="text-gray-600">Total Bookings</div>
-        </div>
-        <div className="bg-white p-4 rounded-lg shadow border text-center">
-          <div className="text-2xl font-bold text-green-600">
-            {events.filter(e => e.status === 'approved').length}
-          </div>
-          <div className="text-gray-600">Approved</div>
-        </div>
-        <div className="bg-white p-4 rounded-lg shadow border text-center">
-          <div className="text-2xl font-bold text-amber-600">
-            {events.filter(e => e.status === 'pending').length}
-          </div>
-          <div className="text-gray-600">Pending</div>
-        </div>
-        <div className="bg-white p-4 rounded-lg shadow border text-center">
-          <div className="text-2xl font-bold text-blue-600">
-            {laboratories.length}
-          </div>
-          <div className="text-gray-600">Laboratories</div>
+        <div className="flex items-center space-x-1">
+          <div className="w-3 h-3 bg-red-100 border border-red-200 rounded"></div>
+          <span className="text-gray-600">Cancelled</span>
         </div>
       </div>
     </div>

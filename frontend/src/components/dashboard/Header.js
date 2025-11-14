@@ -1,18 +1,31 @@
 import React from 'react';
+import { useAuth } from '../../context/AuthContext';
 
-const DashboardHeader = ({ userRole, activeTab }) => {
+const DashboardHeader = ({ userRole, activeTab, userName }) => {
+  const { user, logout } = useAuth();
+
   const getPageTitle = (tab) => {
     const titles = {
       overview: 'Dashboard Overview',
       labs: 'Laboratory Management',
       bookings: userRole === 'admin' ? 'All Bookings' : 'My Bookings',
+      'my-bookings': 'My Bookings',
       users: 'User Management',
       reports: 'Analytics & Reports',
       settings: 'System Settings',
-      schedule: 'Teaching Schedule',
+      schedule: userRole === 'teacher' ? 'Teaching Schedule' : 'Class Schedule',
       history: 'Booking History',
     };
     return titles[tab] || 'Dashboard';
+  };
+
+  const getRoleDisplayName = (role) => {
+    const roles = {
+      admin: 'Administrator',
+      teacher: 'Teacher',
+      student: 'Student'
+    };
+    return roles[role] || 'User';
   };
 
   return (
@@ -24,7 +37,7 @@ const DashboardHeader = ({ userRole, activeTab }) => {
               {getPageTitle(activeTab)}
             </h1>
             <p className="text-gray-600 mt-1">
-              Welcome back, {userRole === 'admin' ? 'Administrator' : 'Teacher'}
+              Welcome back, {userName || getRoleDisplayName(userRole)}
             </p>
           </div>
 
@@ -39,13 +52,13 @@ const DashboardHeader = ({ userRole, activeTab }) => {
             <div className="flex items-center space-x-3">
               <div className="text-right">
                 <p className="text-sm font-semibold text-gray-900">
-                  {userRole === 'admin' ? 'Admin User' : 'Teacher User'}
+                  {userName || user?.username}
                 </p>
-                <p className="text-xs text-gray-500">Active</p>
+                <p className="text-xs text-gray-500 capitalize">{userRole}</p>
               </div>
               <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-full flex items-center justify-center">
                 <span className="text-white font-bold text-sm">
-                  {userRole === 'admin' ? 'A' : 'T'}
+                  {userName ? userName.charAt(0).toUpperCase() : userRole.charAt(0).toUpperCase()}
                 </span>
               </div>
             </div>
