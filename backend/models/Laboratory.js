@@ -68,6 +68,10 @@ const laboratorySchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
+  },
+  color: {
+    type: String,
+    default: '#3B82F6' // default blue
   }
 }, {
   timestamps: true

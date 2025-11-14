@@ -26,13 +26,33 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     setLoading(true);
     try {
-      // Simulate API call - in real app, this would be your backend
+      // Mock user data that matches the User model structure
       const mockUser = {
-        id: 1,
-        email,
+        _id: '1',
+        username: email.includes('admin') ? 'admin' : 'teacher',
+        email: email,
         role: email.includes('admin') ? 'admin' : 'teacher',
-        name: email.includes('admin') ? 'Administrator' : 'Teacher User',
-        avatar: email.includes('admin') ? 'A' : 'T'
+        profile: {
+          fullName: email.includes('admin') ? 'Administrator' : 'Teacher User',
+          phone: '',
+          department: 'Computer Science',
+          nim: '',
+          nidn: email.includes('admin') ? '' : '1234567890'
+        },
+        permissions: {
+          canManageUsers: email.includes('admin'),
+          canManageLabs: email.includes('admin'),
+          canViewAllBookings: email.includes('admin'),
+          canApproveBookings: email.includes('admin'),
+          canGenerateReports: email.includes('admin'),
+          canCreateBookings: true,
+          canViewOwnBookings: true,
+          canViewCalendar: true,
+          canViewPublicCalendar: true
+        },
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       };
       
       setUser(mockUser);
@@ -48,11 +68,33 @@ export const AuthProvider = ({ children }) => {
   const register = async (userData) => {
     setLoading(true);
     try {
-      // Simulate registration
+      // Simulate registration with proper structure
       const newUser = {
-        id: Date.now(),
-        ...userData,
-        avatar: userData.role === 'admin' ? 'A' : 'T'
+        _id: Date.now().toString(),
+        username: userData.username,
+        email: userData.email,
+        role: userData.role || 'teacher',
+        profile: {
+          fullName: userData.fullName,
+          phone: userData.phone || '',
+          department: userData.department || '',
+          nim: userData.nim || '',
+          nidn: userData.nidn || ''
+        },
+        permissions: {
+          canManageUsers: userData.role === 'admin',
+          canManageLabs: userData.role === 'admin',
+          canViewAllBookings: userData.role === 'admin',
+          canApproveBookings: userData.role === 'admin',
+          canGenerateReports: userData.role === 'admin',
+          canCreateBookings: userData.role !== 'student',
+          canViewOwnBookings: true,
+          canViewCalendar: userData.role !== 'student',
+          canViewPublicCalendar: true
+        },
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       };
       
       setUser(newUser);
@@ -85,3 +127,5 @@ export const AuthProvider = ({ children }) => {
     </AuthContext.Provider>
   );
 };
+
+export default AuthContext;

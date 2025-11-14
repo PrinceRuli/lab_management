@@ -4,6 +4,8 @@ import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
+import UserManagement from './components/admin/UserManagement';
+import CalendarView from './components/calendar/CalendarView';
 
 function App() {
   return (
@@ -14,6 +16,8 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/dashboard/:role" element={<Dashboard />} />
+          <Route path="/admin/users" element={<UserManagement />} />
+          <Route path="/calendar" element={<CalendarView />} />
           <Route path="*" element={
             <div className="min-h-screen flex items-center justify-center bg-gray-50">
               <div className="text-center">
