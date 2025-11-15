@@ -4,6 +4,7 @@ import RecentBookings from '../booking/RecentBookings';
 import LabUsageChart from '../dashboard/LabUsageChart';
 import AddLaboratoryModal from './AddLaboratoryModal'; // Import modal
 import AdminBookingManagement from './AdminBookingManagement';
+import SystemReports from './SystemReports';
 
 
 
@@ -449,6 +450,25 @@ const AdminDashboard = ({ activeTab, user, onTabChange }) => {  // Tambah onTabC
 
       case 'bookings':
         return <AdminBookingManagement />;
+
+      case 'reports':
+        return <SystemReports />;
+
+      case 'users':
+        return (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">User Management</h2>
+            <p className="text-gray-600">User management content coming soon...</p>
+          </div>
+        );
+
+      case 'settings':
+        return (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">System Settings</h2>
+            <p className="text-gray-600">System settings content coming soon...</p>
+          </div>
+        );
 
       // ... other cases (users, bookings, reports, settings) tetap sama
 
