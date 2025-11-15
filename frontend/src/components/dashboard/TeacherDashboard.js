@@ -3,6 +3,7 @@ import StatsCard from '../common/StatsCard';
 import RecentBookings from '../booking/RecentBookings';
 import LabUsageChart from './LabUsageChart';
 import BookingForm from '../booking/BookingForm';
+import TeachingSchedule from './TeachingSchedule'; // Import komponen TeachingSchedule
 
 const TeacherDashboard = ({ activeTab, user }) => {
   const [loading, setLoading] = useState(true);
@@ -354,16 +355,7 @@ const TeacherDashboard = ({ activeTab, user }) => {
         );
 
       case 'schedule':
-        return (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Teaching Schedule</h2>
-            <div className="text-center py-12">
-              <div className="text-6xl mb-4">🗓️</div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">My Schedule</h3>
-              <p className="text-gray-600">View and manage your personal teaching schedule</p>
-            </div>
-          </div>
-        );
+        return <TeachingSchedule user={user} />;
 
       case 'history':
         return (
