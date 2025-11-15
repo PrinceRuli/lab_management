@@ -7,14 +7,15 @@ import AdminBookingManagement from './AdminBookingManagement';
 import SystemReports from './SystemReports';
 import UserManagement from './UserManagement';
 import SystemSettings from './SystemSettings';
+import LaboratoryManagement from './LaboratoryManagement';
+
 
 
 const AdminDashboard = ({ activeTab, user, onTabChange }) => {  // Tambah onTabChange prop
   const [dashboardData, setDashboardData] = useState({});
   const [loading, setLoading] = useState(true);
-  const [showAddLabModal, setShowAddLabModal] = useState(false);
-  const [laboratories, setLaboratories] = useState([]);
-
+  
+  
   // Simulate data loading for admin
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -38,27 +39,7 @@ const AdminDashboard = ({ activeTab, user, onTabChange }) => {  // Tambah onTabC
         ]
       });
       
-      // Sample laboratories data
-      setLaboratories([
-        {
-          id: 1,
-          name: 'Computer Lab 1',
-          location: 'Building A, Room 101',
-          capacity: 30,
-          equipment: ['Computers', 'Projector', 'Whiteboard'],
-          description: 'Main computer laboratory for programming classes',
-          status: 'active'
-        },
-        {
-          id: 2,
-          name: 'Physics Lab',
-          location: 'Building B, Room 201',
-          capacity: 25,
-          equipment: ['Oscilloscopes', 'Multimeters', 'Power Supplies'],
-          description: 'Laboratory for physics experiments',
-          status: 'active'
-        }
-      ]);
+      
       
       setLoading(false);
     }, 1000);
@@ -66,36 +47,7 @@ const AdminDashboard = ({ activeTab, user, onTabChange }) => {  // Tambah onTabC
     return () => clearTimeout(timer);
   }, []);
 
-  // Function to handle adding new laboratory
-  const handleAddLaboratory = (laboratoryData) => {
-    const newLaboratory = {
-      ...laboratoryData,
-      id: Date.now() // Use timestamp as unique ID
-    };
-    
-    setLaboratories(prev => [newLaboratory, ...prev]);
-    
-    // Show success message (you can replace with toast notification)
-    console.log('Laboratory added:', newLaboratory);
-    alert('Laboratory added successfully!');
-  };
 
-  // Function to handle laboratory status change
-  const handleStatusChange = (labId, newStatus) => {
-    setLaboratories(prev => 
-      prev.map(lab => 
-        lab.id === labId ? { ...lab, status: newStatus } : lab
-      )
-    );
-  };
-
-  // Function to handle laboratory deletion
-  const handleDeleteLaboratory = (labId) => {
-    if (window.confirm('Are you sure you want to delete this laboratory?')) {
-      setLaboratories(prev => prev.filter(lab => lab.id !== labId));
-      alert('Laboratory deleted successfully!');
-    }
-  };
 
   // Quick Actions Handlers
   const handleQuickAction = (action) => {
@@ -123,7 +75,7 @@ const AdminDashboard = ({ activeTab, user, onTabChange }) => {  // Tambah onTabC
   const stats = [
     {
       title: 'Total Laboratories',
-      value: laboratories.length.toString(),
+      value: '5' ,
       icon: '🏢',
       change: '+2',
       description: 'from last month',
@@ -346,108 +298,7 @@ const AdminDashboard = ({ activeTab, user, onTabChange }) => {  // Tambah onTabC
         );
 
       case 'labs':
-        return (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900">Laboratory Management</h2>
-                <p className="text-gray-600 mt-1">Manage all laboratory facilities and equipment</p>
-              </div>
-              <button 
-                onClick={() => setShowAddLabModal(true)}
-                className="btn-primary flex items-center space-x-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-              >
-                <span>+</span>
-                <span>Add New Laboratory</span>
-              </button>
-            </div>
-
-            {/* Laboratories List */}
-            <div className="space-y-4">
-              {laboratories.map(lab => (
-                <div key={lab.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                        <span className="text-xl">🏢</span>
-                      </div>
-                      <div>
-                        <h3 className="font-semibold text-gray-900">{lab.name}</h3>
-                        <p className="text-sm text-gray-600">{lab.location}</p>
-                        <div className="flex items-center space-x-4 mt-1">
-                          <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                            Capacity: {lab.capacity}
-                          </span>
-                          <span className={`text-xs px-2 py-1 rounded ${
-                            lab.status === 'active' 
-                              ? 'bg-green-100 text-green-800' 
-                              : lab.status === 'maintenance'
-                              ? 'bg-yellow-100 text-yellow-800'
-                              : 'bg-red-100 text-red-800'
-                          }`}>
-                            {lab.status.charAt(0).toUpperCase() + lab.status.slice(1)}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center space-x-2">
-                      {/* Status Dropdown */}
-                      <select 
-                        value={lab.status}
-                        onChange={(e) => handleStatusChange(lab.id, e.target.value)}
-                        className="text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      >
-                        <option value="active">Active</option>
-                        <option value="maintenance">Maintenance</option>
-                        <option value="inactive">Inactive</option>
-                      </select>
-                      
-                      {/* Edit Button */}
-                      <button className="text-blue-600 hover:text-blue-800 p-1">
-                        ✏️
-                      </button>
-                      
-                      {/* Delete Button */}
-                      <button 
-                        onClick={() => handleDeleteLaboratory(lab.id)}
-                        className="text-red-600 hover:text-red-800 p-1"
-                      >
-                        🗑️
-                      </button>
-                    </div>
-                  </div>
-                  
-                  {/* Equipment and Description */}
-                  <div className="mt-3 pt-3 border-t border-gray-100">
-                    <p className="text-sm text-gray-600 mb-2">
-                      <strong>Equipment:</strong> {lab.equipment.join(', ')}
-                    </p>
-                    {lab.description && (
-                      <p className="text-sm text-gray-600">
-                        <strong>Description:</strong> {lab.description}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              ))}
-              
-              {laboratories.length === 0 && (
-                <div className="text-center py-12">
-                  <div className="text-6xl mb-4">🏢</div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">No Laboratories</h3>
-                  <p className="text-gray-600 mb-4">Get started by adding your first laboratory</p>
-                  <button 
-                    onClick={() => setShowAddLabModal(true)}
-                    className="btn-primary px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-                  >
-                    Add First Laboratory
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        );
+        return <LaboratoryManagement />;     
 
       case 'bookings':
         return <AdminBookingManagement />;
@@ -482,13 +333,6 @@ const AdminDashboard = ({ activeTab, user, onTabChange }) => {  // Tambah onTabC
           </div>
         </div>
       </div>
-
-      {/* Add Laboratory Modal */}
-      <AddLaboratoryModal
-        isOpen={showAddLabModal}
-        onClose={() => setShowAddLabModal(false)}
-        onAddLaboratory={handleAddLaboratory}
-      />
     </>
   );
 };
