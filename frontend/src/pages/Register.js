@@ -192,7 +192,7 @@ const Register = () => {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-cyan-500 text-white py-3 px-4 rounded-lg font-semibold hover:bg-cyan-600 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-cyan-500/25 hover:shadow-xl hover:shadow-cyan-500/30 transform hover:-translate-y-0.5"
+              className="w-full bg-cyan-500 text-white py-3 px-4 rounded-full font-semibold hover:bg-cyan-600 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-cyan-500/25 hover:shadow-xl hover:shadow-cyan-500/30 transform hover:-translate-y-0.5"
             >
               {isLoading ? (
                 <div className="flex items-center justify-center">
@@ -208,7 +208,7 @@ const Register = () => {
               <p className="text-sm text-gray-600">Already have an account?</p>
               <Link 
                 to="/login" 
-                className="inline-block w-full border border-cyan-500 text-cyan-500 py-3 px-4 rounded-lg font-semibold hover:bg-cyan-500 hover:text-white transition-all duration-200 transform hover:-translate-y-0.5 mt-2"
+                className="inline-block w-full border border-cyan-500 text-cyan-500 py-3 px-4 rounded-full font-semibold hover:bg-cyan-500 hover:text-white transition-all duration-200 transform hover:-translate-y-0.5 mt-2"
               >
                 Sign In Instead
               </Link>

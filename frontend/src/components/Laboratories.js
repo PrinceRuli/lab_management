@@ -201,10 +201,10 @@ const Laboratories = () => {
 
                   {/* Action Buttons */}
                   <div className="flex space-x-3">
-                    <button className="flex-1 bg-cyan-500 text-white py-2 px-4 rounded-lg font-semibold hover:bg-cyan-600 transition-colors duration-200 text-sm">
+                    <button className="flex-1 bg-cyan-500 text-white py-2 px-4 rounded-full font-semibold hover:bg-cyan-600 transition-colors duration-200 text-sm">
                       View Details
                     </button>
-                    <button className="flex-1 border border-cyan-500 text-cyan-500 py-2 px-4 rounded-lg font-semibold hover:bg-cyan-500 hover:text-white transition-colors duration-200 text-sm">
+                    <button className="flex-1 border border-cyan-500 text-cyan-500 py-2 px-4 rounded-full font-semibold hover:bg-cyan-500 hover:text-white transition-colors duration-200 text-sm">
                       Book Now
                     </button>
                   </div>
@@ -224,10 +224,10 @@ const Laboratories = () => {
               Book a tour or schedule a laboratory session today. Our team is ready to assist you with all your educational and research needs.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button className="bg-white text-cyan-600 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors duration-200">
+              <button className="bg-white text-cyan-600 px-6 py-3 rounded-full font-semibold hover:bg-gray-100 transition-colors duration-200">
                 Schedule a Tour
               </button>
-              <button className="border border-white text-white px-6 py-3 rounded-lg font-semibold hover:bg-white hover:text-cyan-600 transition-colors duration-200">
+              <button className="border border-white text-white px-6 py-3 rounded-full font-semibold hover:bg-white hover:text-cyan-600 transition-colors duration-200">
                 Contact Support
               </button>
             </div>

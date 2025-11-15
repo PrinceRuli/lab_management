@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 
 const Hero = () => {
   return (
-    <section id="home" className="min-h-screen flex items-center justify-center bg-white pt-20">
+    <section id="home" className="min-h-screen p-3 flex items-center justify-center bg-white pt-20">
       <div className="container-custom">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           {/* Left Content */}
@@ -30,10 +30,10 @@ const Hero = () => {
 
             {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row gap-4">
-              <Link to="/register" className="btn btn-primary btn-large">
+              <Link to="/register" className="btn btn-primary btn-large rounded-full">
                 Get Started
               </Link>
-              <Link to="/login" className="btn btn-secondary btn-large">
+              <Link to="/login" className="btn btn-secondary btn-large rounded-full">
                 Sign In
               </Link>
             </div>

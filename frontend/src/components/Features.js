@@ -86,7 +86,7 @@ const Features = () => {
               <p className="text-cyan-100 mb-6">
                 Join hundreds of institutions already using LabSchedule
               </p>
-              <a href="/register" className="inline-block bg-white text-cyan-600 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors duration-200">
+              <a href="/register" className="inline-block bg-white text-cyan-600 px-6 py-3 rounded-full font-semibold hover:bg-gray-100 transition-colors duration-200 ">
                 Start Free Trial
               </a>
             </div>
