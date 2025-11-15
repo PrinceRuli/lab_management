@@ -3,6 +3,9 @@ import StatsCard from '../common/StatsCard';
 import RecentBookings from '../booking/RecentBookings';
 import LabUsageChart from '../dashboard/LabUsageChart';
 import AddLaboratoryModal from './AddLaboratoryModal'; // Import modal
+import AdminBookingManagement from './AdminBookingManagement';
+
+
 
 const AdminDashboard = ({ activeTab, user, onTabChange }) => {  // Tambah onTabChange prop
   const [dashboardData, setDashboardData] = useState({});
@@ -443,6 +446,9 @@ const AdminDashboard = ({ activeTab, user, onTabChange }) => {  // Tambah onTabC
             </div>
           </div>
         );
+
+      case 'bookings':
+        return <AdminBookingManagement />;
 
       // ... other cases (users, bookings, reports, settings) tetap sama
 
