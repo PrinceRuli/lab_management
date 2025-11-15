@@ -4,6 +4,10 @@ import RecentBookings from '../booking/RecentBookings';
 import LabUsageChart from './LabUsageChart';
 import BookingForm from '../booking/BookingForm';
 import TeachingSchedule from './TeachingSchedule'; // Import komponen TeachingSchedule
+import BookingHistory from './BookingHistory';
+
+
+
 
 const TeacherDashboard = ({ activeTab, user }) => {
   const [loading, setLoading] = useState(true);
@@ -353,6 +357,9 @@ const TeacherDashboard = ({ activeTab, user }) => {
             <RecentBookings userRole="teacher" />
           </div>
         );
+
+      case 'history':
+        return <BookingHistory user={user} />
 
       case 'schedule':
         return <TeachingSchedule user={user} />;
