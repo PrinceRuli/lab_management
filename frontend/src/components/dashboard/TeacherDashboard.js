@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import StatsCard from './StatsCard';
-import RecentBookings from './RecentBookings';
+import StatsCard from '../common/StatsCard';
+import RecentBookings from '../booking/RecentBookings';
 import LabUsageChart from './LabUsageChart';
-import BookingForm from './BookingForm';
+import BookingForm from '../booking/BookingForm';
 
 const TeacherDashboard = ({ activeTab, user }) => {
   const [loading, setLoading] = useState(true);
