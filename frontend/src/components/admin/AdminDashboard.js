@@ -6,7 +6,7 @@ import AddLaboratoryModal from './AddLaboratoryModal'; // Import modal
 import AdminBookingManagement from './AdminBookingManagement';
 import SystemReports from './SystemReports';
 import UserManagement from './UserManagement';
-
+import SystemSettings from './SystemSettings';
 
 
 const AdminDashboard = ({ activeTab, user, onTabChange }) => {  // Tambah onTabChange prop
@@ -459,12 +459,7 @@ const AdminDashboard = ({ activeTab, user, onTabChange }) => {  // Tambah onTabC
         return <UserManagement />;
 
       case 'settings':
-        return (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">System Settings</h2>
-            <p className="text-gray-600">System settings content coming soon...</p>
-          </div>
-        );
+        return <SystemSettings />;
 
       // ... other cases (users, bookings, reports, settings) tetap sama
 
