@@ -297,16 +297,16 @@ const LandingPageLayout = ({ children }) => {
 
               {/* Social Media */}
               <div className="flex space-x-4">
-                <a href="#" className="text-gray-400 hover:text-white transition">
+                <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition">
                   <FaFacebook className="h-5 w-5" />
                 </a>
-                <a href="#" className="text-gray-400 hover:text-white transition">
+                <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition">
                   <FaTwitter className="h-5 w-5" />
                 </a>
-                <a href="#" className="text-gray-400 hover:text-white transition">
+                <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition">
                   <FaInstagram className="h-5 w-5" />
                 </a>
-                <a href="#" className="text-gray-400 hover:text-white transition">
+                <a href="https://youtube.com" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition">
                   <FaYoutube className="h-5 w-5" />
                 </a>
               </div>

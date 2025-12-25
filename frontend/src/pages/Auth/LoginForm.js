@@ -103,9 +103,9 @@ const LoginForm = () => {
               Ingat saya
             </label>
 
-            <a href="#" className="text-blue-600 hover:text-blue-700">
+            <Link to="/forgot-password" className="text-blue-600 hover:text-blue-700">
               Lupa password?
-            </a>
+            </Link>
           </div>
 
           {/* Submit */}

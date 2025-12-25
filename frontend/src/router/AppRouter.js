@@ -13,6 +13,7 @@ import TeacherDashboardLayout from '../components/layouts/TeacherDashboardLayout
 import LandingPage from '../pages/Public/LandingPage';
 import LoginForm from '../pages/Auth/LoginForm';
 import SignupForm from '../pages/Auth/SignupForm';
+import ForgotPassword from '../pages/Auth/ForgotPassword';
 import PrivacyPolicy from '../pages/Public/PrivacyPolicy';
 import TermsAndConditions from '../pages/Public/TermsAndConditions';
 
@@ -84,6 +85,7 @@ const AppRouter = () => {
           } />
           <Route path="/login" element={<LoginForm />} />
           <Route path="/signup" element={<SignupForm />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="/terms" element={<TermsAndConditions />} />
 

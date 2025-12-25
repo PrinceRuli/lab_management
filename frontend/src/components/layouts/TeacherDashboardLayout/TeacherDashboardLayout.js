@@ -11,7 +11,6 @@ import {
   FaSignOutAlt,
   FaBars,
   FaTimes,
-  FaUserCircle,
   FaBell
 } from 'react-icons/fa';
 import Notifications from '../../common/Notifications';
@@ -79,20 +78,11 @@ const TeacherDashboardLayout = ({ children }) => {
             </div>
           </div>
 
-          {/* User Profile */}
+          {/* Quote Card (glass) replacing User Profile */}
           <div className="p-4 border-b border-gray-800">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 rounded-full bg-green-600 flex items-center justify-center">
-                {user.avatar ? (
-                  <img src={user.avatar} alt={user.name} className="w-full h-full rounded-full" />
-                ) : (
-                  <FaUserCircle className="h-6 w-6" />
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-medium truncate">{user.name || 'Teacher User'}</p>
-                <p className="text-sm text-gray-400 truncate">{user.email || 'teacher@lab.com'}</p>
-              </div>
+            <div className="p-4 rounded-xl bg-white/5 backdrop-blur-sm border border-white/10 text-gray-100">
+              <p className="text-sm leading-relaxed">Pendidikan bukanlah mempelajari fakta, tetapi melatih pikiran untuk berpikir.</p>
+              <p className="mt-3 text-sm text-gray-200">— <span className="font-semibold">Albert Einstein</span></p>
             </div>
           </div>
 

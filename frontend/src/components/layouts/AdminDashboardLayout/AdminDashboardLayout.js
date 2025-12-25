@@ -66,7 +66,7 @@ const AdminDashboardLayout = ({ children }) => {
           {/* Logo */}
           <div className="p-6 border-b border-gray-800">
             <div className="flex items-center space-x-2">
-              <FaFlask className="h-8 w-8 text-blue-600" />
+              <FaFlask className="h-8 w-8 text-blue-400" />
               <div>
                 <span className="text-xl font-bold">LabSchedule</span>
                 <span className="text-xs bg-blue-600 px-2 py-1 rounded inline-block mt-1">Admin</span>
@@ -74,29 +74,29 @@ const AdminDashboardLayout = ({ children }) => {
             </div>
           </div>
 
-          {/* User Profile */}
+          {/* Quote Card (glass) replacing User Profile */}
           <div className="p-4 border-b border-gray-800">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center">
-                <span className="font-bold">{user?.name?.charAt(0)}</span>
-              </div>
-              <div>
-                <p className="font-medium">{user?.name}</p>
-                <p className="text-sm text-gray-400">Administrator</p>
-              </div>
+            <div className="p-4 rounded-xl bg-white/5 backdrop-blur-sm border border-white/10 text-gray-100">
+              <p className="text-sm leading-relaxed">Siapa yang menempuh jalan untuk mencari ilmu, maka Allah akan mudahkan baginya jalan menuju surga.</p>
+              <p className="mt-3 text-sm text-gray-200">— <span className="font-semibold">(HR. Muslim)</span></p>
             </div>
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 p-4 space-y-1">
+          <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
             {navItems.map((item) => (
               <Link
                 key={item.path}
                 to={item.path}
-                className="flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-300 hover:bg-blue-600 hover:text-white"
+                className={`
+                  flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${window.location.pathname === item.path
+                    ? 'bg-blue-600 text-white'
+                    : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                  }
+            `}
                 onClick={() => setSidebarOpen(false)}
               >
-                {item.icon}
+                <span className='text-lg'>{item.icon}</span>
                 <span>{item.label}</span>
               </Link>
             ))}
