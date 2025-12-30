@@ -7,7 +7,7 @@ mongoose.set('strictQuery', false);
 const connectDB = async () => {
   try {
     const mongoURI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/lab_management';
-    console.log('🔗 Connecting to MongoDB...');
+    console.log('🔗 Connecting to MongoDB Atlas...');
     
     const conn = await mongoose.connect(mongoURI, {
       serverSelectionTimeoutMS: 5000,

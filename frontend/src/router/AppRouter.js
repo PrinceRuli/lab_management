@@ -1,5 +1,5 @@
 // src/router/AppRouter.js
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from '../context/AuthContext';
 import { Toaster } from 'react-hot-toast';
@@ -9,48 +9,122 @@ import LandingPageLayout from '../components/layouts/LandingPageLayout/LandingPa
 import AdminDashboardLayout from '../components/layouts/AdminDashboardLayout/AdminDashboardLayout';
 import TeacherDashboardLayout from '../components/layouts/TeacherDashboardLayout/TeacherDashboardLayout';
 
-// Public Pages
-import LandingPage from '../pages/Public/LandingPage';
-import LoginForm from '../pages/Auth/LoginForm';
-import SignupForm from '../pages/Auth/SignupForm';
-import ForgotPassword from '../pages/Auth/ForgotPassword';
-import PrivacyPolicy from '../pages/Public/PrivacyPolicy';
-import TermsAndConditions from '../pages/Public/TermsAndConditions';
+// Loading Components
+const LoadingSpinner = () => (
+  <div className="flex items-center justify-center min-h-screen">
+    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+  </div>
+);
 
-// Admin Pages
-import AdminDashboard from '../pages/Admin/AdminDashboard';
-import UserManagement from '../pages/Admin/UserManagement';
-import LabManagement from '../pages/Admin/LabManagement';
-import BookingManagement from '../pages/Admin/BookingManagement';
-import ReportAnalytics from '../pages/Admin/ReportAnalytics';
+// Lazy load components for better performance
+const LandingPage = lazy(() => import('../pages/Public/LandingPage'));
+const SchedulesPage = lazy(() => import('../pages/Public/SchedulesPage'));
+const LoginForm = lazy(() => import('../pages/Auth/LoginForm'));
+const SignupForm = lazy(() => import('../pages/Auth/SignupForm'));
+const ForgotPassword = lazy(() => import('../pages/Auth/ForgotPassword'));
+const PrivacyPolicy = lazy(() => import('../pages/Public/PrivacyPolicy'));
+const TermsAndConditions = lazy(() => import('../pages/Public/TermsAndConditions'));
 
-// Teacher Pages
-import TeacherDashboard from '../pages/Teacher/TeacherDashboard';
-import MySchedule from '../pages/Teacher/MySchedule';
-import BookingLabs from '../pages/Teacher/BookingLabs';
-import BookingHistory from '../pages/Teacher/BookingHistory';
-import Resources from '../pages/Teacher/Resources';
-import ArticleManagement from '../pages/Teacher/ArticleManagement';
+// Admin Pages - Lazy loaded
+const AdminDashboard = lazy(() => import('../pages/Admin/AdminDashboard'));
+const UserManagement = lazy(() => import('../pages/Admin/UserManagement'));
+const LabManagement = lazy(() => import('../pages/Admin/LabManagement'));
+const BookingManagement = lazy(() => import('../pages/Admin/BookingManagement'));
+const ReportAnalytics = lazy(() => import('../pages/Admin/ReportAnalytics'));
 
-// Protected Route Component
+// Teacher Pages - Lazy loaded
+const TeacherDashboard = lazy(() => import('../pages/Teacher/TeacherDashboard'));
+const MySchedule = lazy(() => import('../pages/Teacher/MySchedule'));
+const BookingLabs = lazy(() => import('../pages/Teacher/BookingLabs'));
+const BookingHistory = lazy(() => import('../pages/Teacher/BookingHistory'));
+const Resources = lazy(() => import('../pages/Teacher/Resources'));
+const ArticleManagement = lazy(() => import('../pages/Teacher/ArticleManagement'));
+
+// Protected Route Component - Improved version
 const ProtectedRoute = ({ children, role }) => {
-  const user = JSON.parse(localStorage.getItem('user'));
-  const token = localStorage.getItem('token');
-
-  if (!token) {
-    return <Navigate to="/login" />;
+  const [isAuthenticated, setIsAuthenticated] = React.useState(null);
+  
+  React.useEffect(() => {
+    const checkAuth = () => {
+      const user = JSON.parse(localStorage.getItem('user') || 'null');
+      const token = localStorage.getItem('token');
+      
+      if (!token || !user) {
+        setIsAuthenticated(false);
+        return;
+      }
+      
+      if (role && user?.role !== role) {
+        setIsAuthenticated('unauthorized');
+        return;
+      }
+      
+      setIsAuthenticated(true);
+    };
+    
+    checkAuth();
+    
+    // Listen for storage changes
+    const handleStorageChange = () => checkAuth();
+    
+    
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [role]);
+  
+  if (isAuthenticated === null) {
+    return <LoadingSpinner />;
   }
-
-  if (role && user?.role !== role) {
-    return <Navigate to="/" />;
+  
+  if (isAuthenticated === false) {
+    return <Navigate to="/login" state={{ from: window.location.pathname }} replace />;
   }
+  
+  if (isAuthenticated === 'unauthorized') {
+    return <Navigate to="/" replace />;
+  }
+  
+  return children;
+};
 
+// Public Route Component (for logged-in users who shouldn't access login/signup)
+const PublicRoute = ({ children }) => {
+  const [isChecking, setIsChecking] = React.useState(true);
+  const [shouldRedirect, setShouldRedirect] = React.useState(false);
+  
+  React.useEffect(() => {
+    const token = localStorage.getItem('token');
+    const user = JSON.parse(localStorage.getItem('user') || 'null');
+    
+    if (token && user) {
+      setShouldRedirect(true);
+    }
+    
+    setIsChecking(false);
+  }, []);
+  
+  if (isChecking) {
+    return <LoadingSpinner />;
+  }
+  
+  if (shouldRedirect) {
+    // Redirect to appropriate dashboard based on role
+    const user = JSON.parse(localStorage.getItem('user') || 'null');
+    const redirectPath = user?.role === 'admin' ? '/admin/dashboard' : '/teacher/dashboard';
+    return <Navigate to={redirectPath} replace />;
+  }
+  
   return children;
 };
 
 const AppRouter = () => {
   return (
-    <BrowserRouter>
+    <BrowserRouter
+      future={{
+        v7_startTransition: true,
+        v7_relativeSplatPath: true,
+        v7_normalizeFormMethod: true
+      }}
+    >
       <AuthProvider>
         <Toaster 
           position="top-right"
@@ -76,140 +150,175 @@ const AppRouter = () => {
             },
           }}
         />
-        <Routes>
-          {/* ============ PUBLIC ROUTES ============ */}
-          <Route path="/" element={
-            <LandingPageLayout>
-              <LandingPage />
-            </LandingPageLayout>
-          } />
-          <Route path="/login" element={<LoginForm />} />
-          <Route path="/signup" element={<SignupForm />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/privacy" element={<PrivacyPolicy />} />
-          <Route path="/terms" element={<TermsAndConditions />} />
+        <Suspense fallback={<LoadingSpinner />}>
+          <Routes>
+            {/* ============ PUBLIC ROUTES ============ */}
+            <Route path="/" element={
+              <LandingPageLayout>
+                <LandingPage />
+              </LandingPageLayout>
+            } />
 
-          {/* ============ ADMIN ROUTES ============ */}
-          <Route path="/admin" element={<Navigate to="/admin/dashboard" />} />
-          
-          <Route path="/admin/dashboard" element={
-            <ProtectedRoute role="admin">
-              <AdminDashboardLayout>
-                <AdminDashboard />
-              </AdminDashboardLayout>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/admin/users" element={
-            <ProtectedRoute role="admin">
-              <AdminDashboardLayout>
-                <UserManagement />
-              </AdminDashboardLayout>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/admin/labs" element={
-            <ProtectedRoute role="admin">
-              <AdminDashboardLayout>
-                <LabManagement />
-              </AdminDashboardLayout>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/admin/bookings" element={
-            <ProtectedRoute role="admin">
-              <AdminDashboardLayout>
-                <BookingManagement />
-              </AdminDashboardLayout>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/admin/reports" element={
-            <ProtectedRoute role="admin">
-              <AdminDashboardLayout>
-                <ReportAnalytics />
-              </AdminDashboardLayout>
-            </ProtectedRoute>
-          } />
+            <Route path="/schedules" element={
+              <LandingPageLayout>
+                <SchedulesPage />
+              </LandingPageLayout>
+            } />
+            
+            <Route path="/login" element={
+              <PublicRoute>
+                <LoginForm />
+              </PublicRoute>
+            } />
+            
+            <Route path="/signup" element={
+              <PublicRoute>
+                <SignupForm />
+              </PublicRoute>
+            } />
+            
+            <Route path="/forgot-password" element={
+              <PublicRoute>
+                <ForgotPassword />
+              </PublicRoute>
+            } />
+            
+            <Route path="/privacy" element={
+              <LandingPageLayout>
+                <PrivacyPolicy />
+              </LandingPageLayout>
+            } />
+            
+            <Route path="/terms" element={
+              <LandingPageLayout>
+                <TermsAndConditions />
+              </LandingPageLayout>
+            } />
 
-          {/* ============ TEACHER ROUTES ============ */}
-          <Route path="/teacher" element={<Navigate to="/teacher/dashboard" />} />
-          
-          <Route path="/teacher/dashboard" element={
-            <ProtectedRoute role="teacher">
-              <TeacherDashboardLayout>
-                <TeacherDashboard />
-              </TeacherDashboardLayout>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/teacher/schedule" element={
-            <ProtectedRoute role="teacher">
-              <TeacherDashboardLayout>
-                <MySchedule />
-              </TeacherDashboardLayout>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/teacher/booking" element={
-            <ProtectedRoute role="teacher">
-              <TeacherDashboardLayout>
-                <BookingLabs />
-              </TeacherDashboardLayout>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/teacher/history" element={
-            <ProtectedRoute role="teacher">
-              <TeacherDashboardLayout>
-                <BookingHistory />
-              </TeacherDashboardLayout>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/teacher/resources" element={
-            <ProtectedRoute role="teacher">
-              <TeacherDashboardLayout>
-                <Resources />
-              </TeacherDashboardLayout>
-            </ProtectedRoute>
-          } />
-          
-          <Route path="/teacher/articles" element={
-            <ProtectedRoute role="teacher">
-              <TeacherDashboardLayout>
-                <ArticleManagement />
-              </TeacherDashboardLayout>
-            </ProtectedRoute>
-          } />
+            {/* ============ ADMIN ROUTES ============ */}
+            <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+            
+            <Route path="/admin/dashboard" element={
+              <ProtectedRoute role="admin">
+                <AdminDashboardLayout>
+                  <AdminDashboard />
+                </AdminDashboardLayout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/admin/users" element={
+              <ProtectedRoute role="admin">
+                <AdminDashboardLayout>
+                  <UserManagement />
+                </AdminDashboardLayout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/admin/labs" element={
+              <ProtectedRoute role="admin">
+                <AdminDashboardLayout>
+                  <LabManagement />
+                </AdminDashboardLayout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/admin/bookings" element={
+              <ProtectedRoute role="admin">
+                <AdminDashboardLayout>
+                  <BookingManagement />
+                </AdminDashboardLayout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/admin/reports" element={
+              <ProtectedRoute role="admin">
+                <AdminDashboardLayout>
+                  <ReportAnalytics />
+                </AdminDashboardLayout>
+              </ProtectedRoute>
+            } />
 
-          {/* ============ 404 ROUTE ============ */}
-          <Route path="*" element={
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-              <div className="text-center p-8 bg-white rounded-lg shadow-lg max-w-md">
-                <h1 className="text-6xl font-bold text-gray-800 mb-4">404</h1>
-                <p className="text-xl text-gray-600 mb-6">Oops! Page not found</p>
-                <p className="text-gray-500 mb-8">
-                  The page you're looking for doesn't exist or has been moved.
-                </p>
-                <div className="space-y-3">
-                  <a 
-                    href="/" 
-                    className="inline-block w-full px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    Go to Homepage
-                  </a>
-                  <button 
-                    onClick={() => window.history.back()}
-                    className="inline-block w-full px-6 py-3 bg-gray-200 text-gray-800 font-medium rounded-lg hover:bg-gray-300 transition-colors"
-                  >
-                    Go Back
-                  </button>
+            {/* ============ TEACHER ROUTES ============ */}
+            <Route path="/teacher" element={<Navigate to="/teacher/dashboard" replace />} />
+            
+            <Route path="/teacher/dashboard" element={
+              <ProtectedRoute role="teacher">
+                <TeacherDashboardLayout>
+                  <TeacherDashboard />
+                </TeacherDashboardLayout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/teacher/schedule" element={
+              <ProtectedRoute role="teacher">
+                <TeacherDashboardLayout>
+                  <MySchedule />
+                </TeacherDashboardLayout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/teacher/booking" element={
+              <ProtectedRoute role="teacher">
+                <TeacherDashboardLayout>
+                  <BookingLabs />
+                </TeacherDashboardLayout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/teacher/history" element={
+              <ProtectedRoute role="teacher">
+                <TeacherDashboardLayout>
+                  <BookingHistory />
+                </TeacherDashboardLayout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/teacher/resources" element={
+              <ProtectedRoute role="teacher">
+                <TeacherDashboardLayout>
+                  <Resources />
+                </TeacherDashboardLayout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/teacher/articles" element={
+              <ProtectedRoute role="teacher">
+                <TeacherDashboardLayout>
+                  <ArticleManagement />
+                </TeacherDashboardLayout>
+              </ProtectedRoute>
+            } />
+
+            {/* ============ 404 ROUTE ============ */}
+            <Route path="*" element={
+              <LandingPageLayout>
+                <div className="min-h-screen flex items-center justify-center p-4">
+                  <div className="text-center p-8 bg-white rounded-lg shadow-lg max-w-md w-full">
+                    <h1 className="text-6xl font-bold text-gray-800 mb-4">404</h1>
+                    <p className="text-xl text-gray-600 mb-6">Oops! Halaman tidak ditemukan</p>
+                    <p className="text-gray-500 mb-8">
+                      Halaman yang Anda cari tidak ada atau telah dipindahkan.
+                    </p>
+                    <div className="space-y-3">
+                      <a 
+                        href="/" 
+                        className="inline-block w-full px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                      >
+                        Kembali ke Beranda
+                      </a>
+                      <button 
+                        onClick={() => window.history.back()}
+                        className="inline-block w-full px-6 py-3 bg-gray-200 text-gray-800 font-medium rounded-lg hover:bg-gray-300 transition-colors"
+                      >
+                        Kembali
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
-          } />
-        </Routes>
+              </LandingPageLayout>
+            } />
+          </Routes>
+        </Suspense>
       </AuthProvider>
     </BrowserRouter>
   );

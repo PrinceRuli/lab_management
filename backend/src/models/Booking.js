@@ -37,6 +37,7 @@ const bookingSchema = new mongoose.Schema({
 
   description: {
     type: String,
+    default: '',
   },
 
   photo: {
@@ -65,13 +66,7 @@ const bookingSchema = new mongoose.Schema({
   },
 
   // ===== BOOKING DETAIL =====
-  purpose: {
-    type: String,
-    default: function () {
-      return this.activityTitle;
-    },
-  },
-
+  
   classGroup: {
     type: String,
     required: true,
@@ -100,7 +95,9 @@ const bookingSchema = new mongoose.Schema({
   createdAt: {
     type: Date,
     default: Date.now,
-  },
+  }
+}, {
+  timestamps: true
 });
 
 module.exports = mongoose.model('Booking', bookingSchema);

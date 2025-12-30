@@ -62,14 +62,14 @@ const LandingPageLayout = ({ children }) => {
 
             {/* ===== Logo ===== */}
             <Link to="/" className="flex items-center space-x-3">
-              <div className="p-2 bg-blue-600 rounded-lg">
+              <div className="p-2 bg-blue-500 rounded-xl">
                 <FaFlask className="h-6 w-6 text-white" />
               </div>
               <div>
                 <span className="text-xl font-bold text-gray-900">
                   LabSchedule
                 </span>
-                <span className="block text-xs text-blue-600 font-medium">
+                <span className="block text-xs text-blue-500 font-medium">
                   Sistem Manajemen Lab
                 </span>
               </div>
@@ -283,7 +283,7 @@ const LandingPageLayout = ({ children }) => {
                   <FaFlask className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold">LabSchedule</h3>
+                  <h3 className="text-xl font-bold text-gray-400">LabSchedule</h3>
                   <p className="text-gray-400 text-sm">
                     Sistem Manajemen Laboratorium
                   </p>
@@ -319,8 +319,8 @@ const LandingPageLayout = ({ children }) => {
                 <li className="flex items-start space-x-3">
                   <FaMapMarkerAlt className="h-5 w-5 text-blue-400 mt-1" />
                   <span>
-                    Gedung Laboratorium Lt. 3 <br />
-                    Universitas Pendidikan Indonesia
+                    Gedung Laboratorium Lt. 2 <br />
+                    SMA Nusantara
                   </span>
                 </li>
                 <li className="flex items-center space-x-3">
@@ -329,7 +329,7 @@ const LandingPageLayout = ({ children }) => {
                 </li>
                 <li className="flex items-center space-x-3">
                   <FaEnvelope className="h-5 w-5 text-blue-400" />
-                  <span>labschedule@universitas.edu</span>
+                  <span>labschedule@highschool.edu</span>
                 </li>
               </ul>
             </div>
@@ -341,9 +341,6 @@ const LandingPageLayout = ({ children }) => {
                 <li>Jam Operasional:</li>
                 <li>Senin – Jumat</li>
                 <li>08.00 – 17.00 WIB</li>
-                <li className="pt-2 text-gray-500">
-                  Respons email maksimal 1x24 jam kerja
-                </li>
               </ul>
             </div>
 

@@ -1,1361 +1,688 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Search, 
-  Calendar, 
-  CheckCircle, 
-  Clock, 
-  XCircle, 
-  Users,
-  User,
-  Mail,
-  Building,
-  Target,
-  /* FileText, */
-  Eye,
-  Trash2,
-  Download,
-  /* Bell,
-  FileBarChart, */
- /*  Plus, */
-  Copy,
-  ChevronLeft,
-  ChevronRight,
-  Filter,
-  ChevronDown,
-  /* MoreVertical, */
-  Edit,
-  /* Printer,
-  Send,
-  AlertCircle,
-  Info, */
-  CheckSquare
-} from 'lucide-react';
-import { labAPI, bookingAPI } from '../../services/api';
+import Card from '../../components/common/Card';
+import Button from '../../components/common/Button';
+import Modal from '../../components/common/Modal';
+import { bookingAPI, labAPI } from '../../services/api';
+import { toast } from 'react-hot-toast';
 
 const BookingManagement = () => {
-  // Labs will be loaded from backend
-
-  // bookings will be loaded from backend
-
-  // State Management
-  const [labs, setLabs] = useState([]);
+  // ================= STATE =================
   const [bookings, setBookings] = useState([]);
-  const [newBooking, setNewBooking] = useState({
-    labId: '',
-    teacherName: '',
-    subject: '',
-    activityTitle: '',
-    description: '',
-    bookingDate: '',
-    startTime: '',
-    endTime: '',
-    purpose: '',
-    participants: [],
-    status: 'pending',
-    remarks: ''
-  });
-  
-  const [filter, setFilter] = useState('semua');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [viewMode, setViewMode] = useState('table');
+  const [filter, setFilter] = useState('semua');
   const [selectedBooking, setSelectedBooking] = useState(null);
-  const [showModal, setShowModal] = useState(false);
-  const [showAddModal, setShowAddModal] = useState(false);
-  /* const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]); */
-  const [calendarMonth, setCalendarMonth] = useState(new Date().getMonth());
-  const [calendarYear, setCalendarYear] = useState(new Date().getFullYear());
-  const [showFilters, setShowFilters] = useState(false);
-  const [dateFilter, setDateFilter] = useState('');
-  const [labFilter, setLabFilter] = useState('semua');
-  const [departmentFilter, setDepartmentFilter] = useState('semua');
-  const [priorityFilter, setPriorityFilter] = useState('semua');
-  
-  // Departments
-  const departments = ['Informatika', 'Kimia', 'Fisika', 'Biologi', 'Teknik Komputer', 'Desain Komunikasi', 'Matematika'];
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [remarks, setRemarks] = useState('');
 
-  // Initialize date to today
+  // ================= FETCH DATA =================
   useEffect(() => {
-    const today = new Date().toISOString().split('T')[0];
-    setNewBooking(prev => ({
-      ...prev,
-      date: today
-    }));
-  }, []);
-
-  // Fetch labs from backend and map status to local labels
-  useEffect(() => {
-    let mounted = true;
-    const fetchLabs = async () => {
+    const fetchData = async () => {
       try {
-        const res = await labAPI.getAll();
-        const data = Array.isArray(res.data) ? res.data : (res.data.data || []);
-        const mapped = data.map(l => ({
-          ...l,
-          // map backend enum to local display used in UI
-          status: l.status === 'available' ? 'tersedia' : l.status === 'occupied' ? 'digunakan' : 'maintenance',
-          facilities: l.facilities || [],
-          capacity: l.capacity || 0,
-        }));
-        if (mounted) setLabs(mapped);
-      } catch (err) {
-        console.error('Failed to fetch labs', err);
-      }
-    };
-
-    fetchLabs();
-    return () => { mounted = false; };
-  }, []);
-
-  // Handlers
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setNewBooking({
-      ...newBooking,
-      [name]: value
-    });
-  };
-
-  // Fetch bookings from backend and normalize fields for UI
-  useEffect(() => {
-    let mounted = true;
-    const fetchBookings = async () => {
-      try {
-        const res = await bookingAPI.getAll();
-        const data = Array.isArray(res.data) ? res.data : (res.data.data || res.data || []);
-        const mapped = data.map(b => {
-          const bookingDate = b.bookingDate ? new Date(b.bookingDate).toISOString().split('T')[0] : '';
-          const createdAt = b.createdAt ? new Date(b.createdAt).toISOString().split('T')[0] : '';
+        setLoading(true);
+        setError(null);
+        
+        console.log('🔄 Fetching booking data with lab populated...');
+        
+        // REQUEST 1: Fetch bookings dengan populate lab
+        const bookingsResponse = await bookingAPI.getAll();
+        
+        let bookingsData = [];
+        
+        // Handle berbagai format response
+        if (Array.isArray(bookingsResponse.data)) {
+          bookingsData = bookingsResponse.data;
+        } else if (bookingsResponse.data?.data && Array.isArray(bookingsResponse.data.data)) {
+          bookingsData = bookingsResponse.data.data;
+        } else if (bookingsResponse.data?.success && Array.isArray(bookingsResponse.data.data)) {
+          bookingsData = bookingsResponse.data.data;
+        } else {
+          bookingsData = [];
+        }
+        
+        console.log('📊 First booking data:', bookingsData[0]);
+        console.log('🔍 Lab in booking data:', bookingsData[0]?.lab);
+        
+        // Transform data dengan akses lab object yang sudah dipopulate
+        const transformedBookings = bookingsData.map(booking => {
+          // Dapatkan data lab - bisa berupa object penuh atau hanya ID
+          const labData = booking.lab || {};
+          const isLabPopulated = labData && typeof labData === 'object' && labData.name;
+          
           return {
-            id: b.id || b._id,
-            lab: b.lab || null,
-            labId: b.lab?.id || b.lab?._id,
-            labName: b.lab?.name || '',
-            user: b.user?.name || b.teacherName || '',
-            userEmail: b.user?.email || '',
-            teacherName: b.teacherName || '',
-            subject: b.subject || '',
-            activityTitle: b.activityTitle || b.purpose || '',
-            description: b.description || b.remarks || '',
-            bookingDate,
-            date: bookingDate,
-            day: b.day || '',
-            startTime: b.startTime || '',
-            endTime: b.endTime || '',
-            purpose: b.purpose || b.activityTitle || '',
-            participants: b.participants || [],
-            status: b.status || 'pending',
-            remarks: b.remarks || '',
-            createdAt,
-            approvedAt: b.approvedAt || null,
+            // ID & basic info
+            _id: booking._id || booking.id,
+            rawId: booking._id || booking.id,
+            
+            // Lab data - akses dari lab object yang sudah dipopulate
+            lab: labData,
+            labName: isLabPopulated 
+              ? labData.name 
+              : booking.labName || 'Lab tidak ditemukan',
+            labLocation: isLabPopulated 
+              ? labData.location 
+              : booking.labLocation || 'Lokasi tidak tersedia',
+            
+            // User & booking info
+            teacherName: booking.teacherName || booking.user?.name || 'Tidak ada nama',
+            userEmail: booking.user?.email || '',
+            subject: booking.subject || 'Tidak ada mata pelajaran',
+            activityTitle: booking.activityTitle || booking.purpose || 'Tidak ada judul',
+            description: booking.description || booking.remarks || '',
+            bookingDate: booking.bookingDate ? new Date(booking.bookingDate).toISOString().split('T')[0] : '',
+            day: booking.day || '',
+            startTime: booking.startTime || '',
+            endTime: booking.endTime || '',
+            classGroup: booking.classGroup || 'Tidak ada kelas',
+            status: booking.status || 'pending',
+            remarks: booking.remarks || '',
+            createdAt: booking.createdAt ? new Date(booking.createdAt).toISOString().split('T')[0] : '',
+            approvedAt: booking.approvedAt || null,
+            user: booking.user || null
           };
         });
-        if (mounted) setBookings(mapped);
+        
+        setBookings(transformedBookings);
+        console.log(`✅ Loaded ${transformedBookings.length} bookings`);
+        
+        // REQUEST 2: Fetch labs sebagai fallback (optional)
+        try {
+          const labsResponse = await labAPI.getAll();
+          console.log('📚 Labs loaded as fallback:', labsResponse.data?.length || 0);
+        } catch (labErr) {
+          console.log('⚠️ Could not load labs separately, using populated data only');
+        }
+        
       } catch (err) {
-        console.error('Failed to fetch bookings', err);
+        console.error('❌ Error fetching data:', err);
+        setError('Gagal memuat data. Silakan coba lagi.');
+        toast.error('Gagal memuat data');
+      } finally {
+        setLoading(false);
       }
     };
 
-    fetchBookings();
-    return () => { mounted = false; };
+    fetchData();
   }, []);
 
-  const addBooking = () => {
-    if (newBooking.labId && newBooking.user && newBooking.date && newBooking.startTime && newBooking.endTime) {
-      const selectedLab = labs.find(lab => lab.id === parseInt(newBooking.labId));
-      
-      // Check for time conflicts
-      const hasConflict = bookings.some(booking => 
-        booking.labId === parseInt(newBooking.labId) &&
-        booking.date === newBooking.date &&
-        booking.status !== 'rejected' &&
-        (
-          (newBooking.startTime >= booking.startTime && newBooking.startTime < booking.endTime) ||
-          (newBooking.endTime > booking.startTime && newBooking.endTime <= booking.endTime) ||
-          (newBooking.startTime <= booking.startTime && newBooking.endTime >= booking.endTime)
-        )
-      );
-      
-      if (hasConflict) {
-        alert('❌ Konflik jadwal! Lab sudah dipesan pada waktu tersebut.');
-        return;
-      }
-      
-      const bookingToAdd = {
-        ...newBooking,
-        id: bookings.length > 0 ? Math.max(...bookings.map(booking => booking.id)) + 1 : 1,
-        labName: selectedLab ? selectedLab.name : 'Lab Tidak Diketahui',
-        createdAt: new Date().toISOString().split('T')[0]
-      };
-      
-      setBookings([...bookings, bookingToAdd]);
-      setNewBooking({
-        labId: '',
-        user: '',
-        userEmail: '',
-        department: '',
-        purpose: '',
-        date: new Date().toISOString().split('T')[0],
-        startTime: '',
-        endTime: '',
-        notes: '',
-        status: 'pending',
-        attendees: 1,
-        priority: 'normal'
-      });
-      setShowAddModal(false);
-      
-      alert('✅ Pemesanan berhasil ditambahkan!');
-    } else {
-      alert('⚠️ Harap isi semua field yang diperlukan!');
-    }
-  };
-
-  const updateBookingStatus = (id, status) => {
-    setBookings(bookings.map(booking => 
-      booking.id === id ? { ...booking, status } : booking
-    ));
-    if (selectedBooking && selectedBooking.id === id) {
-      setSelectedBooking({...selectedBooking, status});
-    }
-  };
-
-  const deleteBooking = (id) => {
-    if (window.confirm('Apakah Anda yakin ingin menghapus pemesanan ini?')) {
-      setBookings(bookings.filter(booking => booking.id !== id));
-      if (selectedBooking && selectedBooking.id === id) {
-        setShowModal(false);
-      }
-    }
-  };
-
-  const editBooking = (booking) => {
-    setNewBooking({
-      labId: booking.lab?.id || '',
-      teacherName: booking.teacherName || booking.user?.name || '',
-      subject: booking.subject || '',
-      activityTitle: booking.activityTitle || booking.purpose || '',
-      description: booking.description || booking.remarks || '',
-      bookingDate: booking.bookingDate || booking.date || '',
-      startTime: booking.startTime || '',
-      endTime: booking.endTime || '',
-      purpose: booking.purpose || booking.activityTitle || '',
-      participants: booking.participants || [],
-      status: booking.status || 'pending',
-      remarks: booking.remarks || ''
-    });
-    setShowAddModal(true);
-  };
-
-  const getStatusColor = (status) => {
-    switch(status) {
-      case 'approved': return 'bg-green-100 text-green-800 border-green-200';
-      case 'pending': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'rejected': return 'bg-red-100 text-red-800 border-red-200';
-      case 'completed': return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'cancelled': return 'bg-gray-100 text-gray-800 border-gray-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  };
-
-  const getStatusText = (status) => {
-    switch(status) {
-      case 'approved': return 'Disetujui';
-      case 'pending': return 'Menunggu';
-      case 'rejected': return 'Ditolak';
-      case 'completed': return 'Selesai';
-      case 'cancelled': return 'Dibatalkan';
-      default: return status;
-    }
-  };
-
-  const getPriorityColor = (priority) => {
-    return 'bg-gray-100 text-gray-800';
-  };
-
-  const viewBookingDetails = (booking) => {
+  // ================= HANDLERS =================
+  const openDetail = (booking) => {
     setSelectedBooking(booking);
-    setShowModal(true);
+    setRemarks(booking.remarks || '');
+    setShowDetailModal(true);
   };
 
-  // Filter bookings (use DB field names)
+  const closeDetail = () => {
+    setSelectedBooking(null);
+    setRemarks('');
+    setShowDetailModal(false);
+  };
+
+  const updateBookingStatus = async (status) => {
+    if (!selectedBooking) return;
+
+    try {
+      console.log('🔄 Updating booking status:', {
+        bookingId: selectedBooking.rawId,
+        status: status,
+        remarks: remarks
+      });
+
+      // Gunakan endpoint update booking
+      const response = await bookingAPI.update(selectedBooking.rawId, { 
+        status, 
+        remarks: remarks || undefined 
+      });
+
+      console.log('✅ Status updated successfully:', response.data);
+
+      // Update local state - PERTAHANKAN data lab yang sudah ada
+      setBookings(bookings.map(booking => 
+        booking._id === selectedBooking._id 
+          ? { 
+              ...booking, 
+              status,
+              remarks: remarks || booking.remarks,
+              approvedAt: status === 'approved' || status === 'rejected' 
+                ? new Date().toISOString() 
+                : booking.approvedAt
+            } 
+          : booking
+      ));
+
+      // Update selected booking in modal
+      setSelectedBooking({
+        ...selectedBooking,
+        status,
+        remarks: remarks || selectedBooking.remarks,
+        approvedAt: status === 'approved' || status === 'rejected' 
+          ? new Date().toISOString() 
+          : selectedBooking.approvedAt
+      });
+
+      toast.success(`Booking berhasil di${status === 'approved' ? 'setujui' : 'tolak'}`);
+      
+      // Optionally close modal after success
+      if (status === 'approved' || status === 'rejected') {
+        setTimeout(() => {
+          closeDetail();
+        }, 1500);
+      }
+
+    } catch (err) {
+      console.error('❌ Error updating status:', err);
+      const errorMessage = err.response?.data?.message || 'Gagal mengupdate status booking';
+      toast.error(errorMessage);
+    }
+  };
+
+  const handleSendNote = async () => {
+    if (!selectedBooking || !remarks.trim()) {
+      toast.error('Catatan tidak boleh kosong');
+      return;
+    }
+
+    try {
+      console.log('📝 Sending note to booking:', selectedBooking.rawId);
+      
+      await bookingAPI.update(selectedBooking.rawId, { 
+        remarks: remarks 
+      });
+
+      // Update local state
+      setBookings(bookings.map(booking => 
+        booking._id === selectedBooking._id 
+          ? { ...booking, remarks } 
+          : booking
+      ));
+
+      // Update selected booking
+      setSelectedBooking({
+        ...selectedBooking,
+        remarks
+      });
+
+      toast.success('Catatan berhasil dikirim');
+      
+    } catch (err) {
+      console.error('❌ Error sending note:', err);
+      toast.error('Gagal mengirim catatan');
+    }
+  };
+
+  const getStatusBadge = (status) => {
+    const statusConfig = {
+      'pending': { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'Menunggu' },
+      'approved': { bg: 'bg-green-100', text: 'text-green-800', label: 'Disetujui' },
+      'rejected': { bg: 'bg-red-100', text: 'text-red-800', label: 'Ditolak' },
+      'completed': { bg: 'bg-blue-100', text: 'text-blue-800', label: 'Selesai' },
+      'cancelled': { bg: 'bg-gray-100', text: 'text-gray-800', label: 'Dibatalkan' },
+    };
+
+    const config = statusConfig[status] || { 
+      bg: 'bg-gray-100', 
+      text: 'text-gray-800', 
+      label: status 
+    };
+
+    return (
+      <span className={`px-3 py-1 rounded-full text-xs font-medium ${config.bg} ${config.text}`}>
+        {config.label}
+      </span>
+    );
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return '-';
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('id-ID', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    } catch (e) {
+      return dateString;
+    }
+  };
+
+  const formatTime = (timeString) => {
+    if (!timeString) return '-';
+    return timeString.length >= 5 ? timeString.substring(0, 5) : timeString;
+  };
+
+  // ================= FILTER BOOKINGS =================
   const filteredBookings = bookings.filter(booking => {
     const matchesStatus = filter === 'semua' || booking.status === filter;
     const searchLower = searchTerm.toLowerCase();
+    
+    // Pencarian mencakup semua field termasuk lab name
     const matchesSearch = (
-      (booking.teacherName || booking.user?.name || '').toLowerCase().includes(searchLower) ||
-      (booking.activityTitle || booking.subject || booking.purpose || '').toLowerCase().includes(searchLower) ||
-      (booking.lab?.name || '').toLowerCase().includes(searchLower)
+      (booking.teacherName || '').toLowerCase().includes(searchLower) ||
+      (booking.activityTitle || '').toLowerCase().includes(searchLower) ||
+      (booking.subject || '').toLowerCase().includes(searchLower) ||
+      (booking.labName || '').toLowerCase().includes(searchLower) ||
+      (booking.labLocation || '').toLowerCase().includes(searchLower)
     );
-    const matchesDate = !dateFilter || booking.bookingDate === dateFilter;
-    const matchesLab = labFilter === 'semua' || booking.lab?.id === parseInt(labFilter);
-    const matchesDept = departmentFilter === 'semua' || (booking.user?.department === departmentFilter);
-    const matchesPriority = priorityFilter === 'semua' || true;
 
-    return matchesStatus && matchesSearch && matchesDate && matchesLab && matchesDept && matchesPriority;
+    return matchesStatus && matchesSearch;
   });
 
-  // Calculate stats
+  // ================= STATS =================
   const stats = {
     total: bookings.length,
-    confirmed: bookings.filter(b => b.status === 'approved').length,
     pending: bookings.filter(b => b.status === 'pending').length,
+    approved: bookings.filter(b => b.status === 'approved').length,
     rejected: bookings.filter(b => b.status === 'rejected').length,
-    today: bookings.filter(b => b.date === new Date().toISOString().split('T')[0]).length,
-    thisWeek: bookings.filter(b => {
-      const bookingDate = new Date(b.date);
-      const today = new Date();
-      const weekStart = new Date(today.setDate(today.getDate() - today.getDay()));
-      const weekEnd = new Date(weekStart);
-      weekEnd.setDate(weekEnd.getDate() + 6);
-      return bookingDate >= weekStart && bookingDate <= weekEnd;
-    }).length
+    today: bookings.filter(b => b.bookingDate === new Date().toISOString().split('T')[0]).length,
   };
 
-  // Calendar functions
-  const getDaysInMonth = (year, month) => {
-    return new Date(year, month + 1, 0).getDate();
-  };
+  // ================= RENDER LOADING =================
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-4 md:p-6">
+        <div className="bg-white p-6 rounded-lg shadow-sm mb-6">
+          <h1 className="text-2xl font-bold text-gray-800">Manajemen Booking</h1>
+          <p className="text-gray-600 mt-1">Memuat data booking...</p>
+        </div>
+        <div className="flex flex-col justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
+          <p className="text-gray-600">Memuat data booking...</p>
+        </div>
+      </div>
+    );
+  }
 
-  const getFirstDayOfMonth = (year, month) => {
-    return new Date(year, month, 1).getDay();
-  };
+  // ================= RENDER ERROR =================
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-4 md:p-6">
+        <div className="bg-white p-6 rounded-lg shadow-sm mb-6">
+          <h1 className="text-2xl font-bold text-gray-800">Manajemen Booking</h1>
+          <p className="text-gray-600 mt-1">Terjadi kesalahan</p>
+        </div>
+        <div className="max-w-2xl mx-auto">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+            <div className="flex flex-col items-center text-center">
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+                <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-red-800 mb-2">Gagal Memuat Data</h3>
+              <p className="text-red-700 mb-6">{error}</p>
+              <button
+                onClick={() => window.location.reload()}
+                className="px-6 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+              >
+                Muat Ulang
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-  const generateCalendar = () => {
-    const daysInMonth = getDaysInMonth(calendarYear, calendarMonth);
-    const firstDay = getFirstDayOfMonth(calendarYear, calendarMonth);
-    const days = [];
-    
-    // Previous month days
-    const prevMonthDays = getDaysInMonth(calendarYear, calendarMonth - 1);
-    for (let i = firstDay - 1; i >= 0; i--) {
-      days.push({
-        day: prevMonthDays - i,
-        month: 'prev',
-        date: new Date(calendarYear, calendarMonth - 1, prevMonthDays - i).toISOString().split('T')[0]
-      });
-    }
-    
-    // Current month days
-    for (let i = 1; i <= daysInMonth; i++) {
-      days.push({
-        day: i,
-        month: 'current',
-        date: new Date(calendarYear, calendarMonth, i).toISOString().split('T')[0]
-      });
-    }
-    
-    // Next month days
-    const totalCells = 42; // 6 weeks
-    for (let i = 1; days.length < totalCells; i++) {
-      days.push({
-        day: i,
-        month: 'next',
-        date: new Date(calendarYear, calendarMonth + 1, i).toISOString().split('T')[0]
-      });
-    }
-    
-    return days;
-  };
-
-  const getBookingsForDate = (date) => {
-    return bookings.filter(booking => booking.bookingDate === date);
-  };
-
-  const navigateMonth = (direction) => {
-    if (direction === 'prev') {
-      if (calendarMonth === 0) {
-        setCalendarMonth(11);
-        setCalendarYear(calendarYear - 1);
-      } else {
-        setCalendarMonth(calendarMonth - 1);
-      }
-    } else {
-      if (calendarMonth === 11) {
-        setCalendarMonth(0);
-        setCalendarYear(calendarYear + 1);
-      } else {
-        setCalendarMonth(calendarMonth + 1);
-      }
-    }
-  };
-
-  // Export to CSV
-  const exportToCSV = () => {
-    const headers = ['ID', 'Lab', 'Pemesan', 'Email', 'Subject', 'Activity', 'Tanggal', 'Waktu', 'Status', 'Remarks', 'Participants', 'CreatedAt'];
-    const csvData = bookings.map(booking => [
-      booking.id,
-      booking.lab?.name || '',
-      booking.user?.name || booking.teacherName || '',
-      booking.user?.email || '',
-      booking.subject || '',
-      booking.activityTitle || booking.purpose || '',
-      booking.bookingDate || '',
-      `${booking.startTime || ''}-${booking.endTime || ''}`,
-      booking.status || '',
-      booking.remarks || booking.description || '',
-      (booking.participants && booking.participants.length) || 0,
-      booking.createdAt || ''
-    ]);
-    
-    const csvContent = [
-      headers.join(','),
-      ...csvData.map(row => row.map(cell => `"${cell}"`).join(','))
-    ].join('\n');
-    
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `bookings_${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-  };
-
-  // Get today's date
-  const today = new Date().toISOString().split('T')[0];
-  const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-
+  // ================= RENDER =================
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
+    <div className="min-h-screen bg-gray-50 p-4 md:p-6">
+      {/* Header - UI PERTAHANAN SAMA */}
+      <div className="bg-white p-6 rounded-lg shadow-sm mb-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-800">Booking Management System</h1>
-            <p className="text-gray-600">Admin Panel - Manajemen Pemesanan Laboratorium</p>
+            <h1 className="text-2xl font-bold text-gray-800">Manajemen Booking</h1>
+            <p className="text-gray-600 mt-1">
+              Kelola semua permintaan booking laboratorium
+            </p>
           </div>
-          <div className="flex items-center space-x-3 mt-4 md:mt-0">
-            
-            <button 
-              onClick={exportToCSV}
-              className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition flex items-center"
+          <div className="mt-4 md:mt-0">
+            <div className="inline-flex rounded-lg border border-gray-200">
+              <button
+                onClick={() => setFilter('semua')}
+                className={`px-4 py-2 text-sm font-medium ${filter === 'semua' ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'text-gray-700 hover:bg-gray-50'}`}
+              >
+                Semua
+              </button>
+              <button
+                onClick={() => setFilter('pending')}
+                className={`px-4 py-2 text-sm font-medium border-l ${filter === 'pending' ? 'bg-yellow-50 text-yellow-700 border border-yellow-200' : 'text-gray-700 hover:bg-gray-50'}`}
+              >
+                Menunggu
+              </button>
+              <button
+                onClick={() => setFilter('approved')}
+                className={`px-4 py-2 text-sm font-medium border-l ${filter === 'approved' ? 'bg-green-50 text-green-700 border border-green-200' : 'text-gray-700 hover:bg-gray-50'}`}
+              >
+                Disetujui
+              </button>
+              <button
+                onClick={() => setFilter('rejected')}
+                className={`px-4 py-2 text-sm font-medium border-l ${filter === 'rejected' ? 'bg-red-50 text-red-700 border border-red-200' : 'text-gray-700 hover:bg-gray-50'}`}
+              >
+                Ditolak
+              </button>
+            </div>
+          </div>
+        </div>
+        <div className="mt-6 grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div className="bg-blue-50 p-4 rounded-lg">
+            <p className="text-sm text-blue-600 font-medium">Total</p>
+            <p className="text-2xl font-bold text-blue-700 mt-1">{stats.total}</p>
+          </div>
+          <div className="bg-yellow-50 p-4 rounded-lg">
+            <p className="text-sm text-yellow-600 font-medium">Menunggu</p>
+            <p className="text-2xl font-bold text-yellow-700 mt-1">{stats.pending}</p>
+          </div>
+          <div className="bg-green-50 p-4 rounded-lg">
+            <p className="text-sm text-green-600 font-medium">Disetujui</p>
+            <p className="text-2xl font-bold text-green-700 mt-1">{stats.approved}</p>
+          </div>
+          <div className="bg-red-50 p-4 rounded-lg">
+            <p className="text-sm text-red-600 font-medium">Ditolak</p>
+            <p className="text-2xl font-bold text-red-700 mt-1">{stats.rejected}</p>
+          </div>
+          <div className="bg-purple-50 p-4 rounded-lg">
+            <p className="text-sm text-purple-600 font-medium">Hari Ini</p>
+            <p className="text-2xl font-bold text-purple-700 mt-1">{stats.today}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Search Bar - UI PERTAHANAN SAMA */}
+      <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
+        <div className="flex items-center">
+          <div className="relative flex-1">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Cari booking berdasarkan nama guru, judul, lab, atau lokasi..."
+              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Bookings List - UI PERTAHANAN SAMA */}
+      {filteredBookings.length === 0 ? (
+        <div className="bg-white rounded-lg shadow-sm p-8 text-center">
+          <div className="max-w-md mx-auto">
+            <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+              {searchTerm || filter !== 'semua' ? 'Booking tidak ditemukan' : 'Belum ada booking'}
+            </h3>
+            <p className="text-gray-600">
+              {searchTerm 
+                ? 'Coba dengan kata kunci pencarian yang berbeda.'
+                : 'Belum ada permintaan booking yang diajukan.'}
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {filteredBookings.map((booking) => (
+            <Card 
+              key={booking._id} 
+              className="p-5 hover:shadow-md transition-all duration-200 hover:-translate-y-1"
             >
-              <Download size={18} className="mr-2" />
-              Export CSV
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div className="p-6">
-        {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-            <div className="flex items-center">
-              <div className="p-2 bg-blue-100 rounded-lg mr-3">
-                <Calendar size={20} className="text-blue-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Total Bookings</p>
-                <p className="text-2xl font-bold text-gray-800">{stats.total}</p>
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-            <div className="flex items-center">
-              <div className="p-2 bg-green-100 rounded-lg mr-3">
-                <CheckCircle size={20} className="text-green-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Confirmed</p>
-                <p className="text-2xl font-bold text-gray-800">{stats.confirmed}</p>
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-            <div className="flex items-center">
-              <div className="p-2 bg-yellow-100 rounded-lg mr-3">
-                <Clock size={20} className="text-yellow-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Pending</p>
-                <p className="text-2xl font-bold text-gray-800">{stats.pending}</p>
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-            <div className="flex items-center">
-              <div className="p-2 bg-red-100 rounded-lg mr-3">
-                <XCircle size={20} className="text-red-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Rejected</p>
-                <p className="text-2xl font-bold text-gray-800">{stats.rejected}</p>
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-            <div className="flex items-center">
-              <div className="p-2 bg-purple-100 rounded-lg mr-3">
-                <Calendar size={20} className="text-purple-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Today</p>
-                <p className="text-2xl font-bold text-gray-800">{stats.today}</p>
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-            <div className="flex items-center">
-              <div className="p-2 bg-indigo-100 rounded-lg mr-3">
-                <Users size={20} className="text-indigo-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">This Week</p>
-                <p className="text-2xl font-bold text-gray-800">{stats.thisWeek}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Controls */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between">
-            <div className="flex space-x-3 mb-4 lg:mb-0">
-              <button 
-                className={`px-4 py-2 rounded-lg flex items-center ${viewMode === 'table' ? 'bg-blue-100 text-blue-700 border border-blue-300' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
-                onClick={() => setViewMode('table')}
-              >
-                <div className="w-4 h-4 mr-2">📋</div>
-                Table View
-              </button>
-              <button 
-                className={`px-4 py-2 rounded-lg flex items-center ${viewMode === 'calendar' ? 'bg-blue-100 text-blue-700 border border-blue-300' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
-                onClick={() => setViewMode('calendar')}
-              >
-                <Calendar size={16} className="mr-2" />
-                Calendar View
-              </button>
-            </div>
-            
-            <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3">
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Search size={18} className="text-gray-400" />
-                </div>
-                <input 
-                  type="text" 
-                  placeholder="Search bookings..." 
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full sm:w-64"
-                />
-              </div>
-              
-              <div className="flex space-x-3">
-                <select 
-                  value={filter} 
-                  onChange={(e) => setFilter(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="semua">All Status</option>
-                  <option value="approved">Confirmed</option>
-                  <option value="pending">Pending</option>
-                  <option value="rejected">Rejected</option>
-                </select>
-                
-                <button 
-                  onClick={() => setShowFilters(!showFilters)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center"
-                >
-                  <Filter size={16} className="mr-2" />
-                  Filters
-                  <ChevronDown size={16} className="ml-1" />
-                </button>
-              </div>
-            </div>
-          </div>
-          
-          {/* Advanced Filters */}
-          {showFilters && (
-            <div className="mt-4 pt-4 border-t border-gray-200">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                  <input 
-                    type="date" 
-                    value={dateFilter}
-                    onChange={(e) => setDateFilter(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Lab</label>
-                  <select 
-                    value={labFilter}
-                    onChange={(e) => setLabFilter(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                  >
-                    <option value="semua">All Labs</option>
-                    {labs.map(lab => (
-                      <option key={lab.id} value={lab.id}>{lab.name}</option>
-                    ))}
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
-                  <select 
-                    value={departmentFilter}
-                    onChange={(e) => setDepartmentFilter(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                  >
-                    <option value="semua">All Departments</option>
-                    {departments.map(dept => (
-                      <option key={dept} value={dept}>{dept}</option>
-                    ))}
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
-                  <select 
-                    value={priorityFilter}
-                    onChange={(e) => setPriorityFilter(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                  >
-                    <option value="semua">All Priorities</option>
-                    <option value="high">High</option>
-                    <option value="medium">Medium</option>
-                    <option value="normal">Normal</option>
-                    <option value="low">Low</option>
-                  </select>
-                </div>
-              </div>
-              
-              <div className="flex justify-end mt-3">
-                <button 
-                  onClick={() => {
-                    setDateFilter('');
-                    setLabFilter('semua');
-                    setDepartmentFilter('semua');
-                    setPriorityFilter('semua');
-                  }}
-                  className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
-                >
-                  Clear All Filters
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Main Content */}
-        {viewMode === 'table' ? (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-gray-800">All Bookings</h2>
-                <span className="text-sm text-gray-500">
-                  Showing {filteredBookings.length} of {bookings.length} bookings
-                </span>
-              </div>
-            </div>
-            
-            {filteredBookings.length === 0 ? (
-              <div className="text-center py-12">
-                <div className="inline-block p-4 bg-gray-100 rounded-full mb-4">
-                  <Search size={32} className="text-gray-400" />
-                </div>
-                <h3 className="text-lg font-medium text-gray-700 mb-2">No bookings found</h3>
-                <p className="text-gray-500">
-                  {searchTerm || filter !== 'semua' 
-                    ? 'Try adjusting your search or filter criteria.' 
-                    : 'No bookings have been created yet.'}
-                </p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Booking</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lab & User</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Schedule</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Details</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {filteredBookings.map(booking => (
-                      <tr key={booking.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">#{booking.id}</div>
-                          <div className="text-xs text-gray-500">{booking.createdAt}</div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center">
-                            <div className="flex-shrink-0 h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                              <Building size={20} className="text-blue-600" />
-                            </div>
-                            <div className="ml-4">
-                              <div className="text-sm font-medium text-gray-900">{booking.lab?.name || 'Unknown Lab'}</div>
-                              <div className="text-sm text-gray-500">{booking.user?.name || booking.teacherName}</div>
-                              <div className="text-xs text-gray-400">{booking.user?.email || ''}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div>
-                            <div className="text-sm font-medium text-gray-900">{booking.bookingDate}</div>
-                            <div className="text-sm text-gray-500">
-                              {booking.startTime} - {booking.endTime}
-                            </div>
-                            <div className="text-xs text-gray-400 flex items-center">
-                              <Users size={12} className="mr-1" />
-                              {(booking.participants && booking.participants.length) || 0} participants
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div>
-                            <div className="text-sm font-medium text-gray-900">{booking.activityTitle || booking.purpose}</div>
-                            {(booking.description || booking.remarks) && (
-                              <div className="text-xs text-gray-500 mt-1 truncate max-w-xs">{booking.description || booking.remarks}</div>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(booking.status)}`}>
-                            {booking.status === 'approved' && <CheckCircle size={12} className="mr-1" />}
-                            {booking.status === 'pending' && <Clock size={12} className="mr-1" />}
-                            {booking.status === 'rejected' && <XCircle size={12} className="mr-1" />}
-                            {getStatusText(booking.status)}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center space-x-2">
-                            <button 
-                              onClick={() => viewBookingDetails(booking)}
-                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
-                              title="View Details"
-                            >
-                              <Eye size={16} />
-                            </button>
-                            <button 
-                              onClick={() => editBooking(booking)}
-                              className="p-2 text-green-600 hover:bg-green-50 rounded-lg"
-                              title="Edit"
-                            >
-                              <Edit size={16} />
-                            </button>
-                            {booking.status === 'pending' && (
-                              <>
-                                <button 
-                                  onClick={() => updateBookingStatus(booking.id, 'approved')}
-                                  className="p-2 text-green-600 hover:bg-green-50 rounded-lg"
-                                  title="Approve"
-                                >
-                                  <CheckSquare size={16} />
-                                </button>
-                                <button 
-                                  onClick={() => updateBookingStatus(booking.id, 'rejected')}
-                                  className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
-                                  title="Reject"
-                                >
-                                  <XCircle size={16} />
-                                </button>
-                              </>
-                            )}
-                            <button 
-                              onClick={() => deleteBooking(booking.id)}
-                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
-                              title="Delete"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        ) : (
-          /* Calendar View */
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-gray-800">Calendar View</h2>
-                <div className="flex items-center space-x-4">
-                  <div className="flex items-center">
-                    <button 
-                      onClick={() => navigateMonth('prev')}
-                      className="p-2 hover:bg-gray-100 rounded-lg"
-                    >
-                      <ChevronLeft size={20} />
-                    </button>
-                    <span className="mx-4 font-medium">
-                      {monthNames[calendarMonth]} {calendarYear}
-                    </span>
-                    <button 
-                      onClick={() => navigateMonth('next')}
-                      className="p-2 hover:bg-gray-100 rounded-lg"
-                    >
-                      <ChevronRight size={20} />
-                    </button>
-                  </div>
-                  <button 
-                    onClick={() => {
-                      setCalendarMonth(new Date().getMonth());
-                      setCalendarYear(new Date().getFullYear());
-                    }}
-                    className="px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg"
-                  >
-                    Today
-                  </button>
-                </div>
-              </div>
-            </div>
-            
-            <div className="p-6">
-              {/* Calendar Header */}
-              <div className="grid grid-cols-7 gap-1 mb-2">
-                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                  <div key={day} className="text-center text-sm font-medium text-gray-500 py-2">
-                    {day}
-                  </div>
-                ))}
-              </div>
-              
-              {/* Calendar Grid */}
-              <div className="grid grid-cols-7 gap-1">
-                {generateCalendar().map((day, index) => {
-                  const dayBookings = getBookingsForDate(day.date);
-                  const isToday = day.date === today;
-                  const isCurrentMonth = day.month === 'current';
-                  
-                  return (
-                    <div 
-                      key={index}
-                      className={`min-h-32 border rounded-lg p-2 ${
-                        isToday 
-                          ? 'border-blue-300 bg-blue-50' 
-                          : isCurrentMonth 
-                            ? 'border-gray-200 bg-white' 
-                            : 'border-gray-100 bg-gray-50'
-                      }`}
-                    >
-                      <div className="flex justify-between items-center mb-1">
-                        <span className={`text-sm font-medium ${
-                          isToday 
-                            ? 'text-blue-600' 
-                            : isCurrentMonth 
-                              ? 'text-gray-700' 
-                              : 'text-gray-400'
-                        }`}>
-                          {day.day}
-                        </span>
-                        {dayBookings.length > 0 && (
-                          <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
-                            {dayBookings.length}
-                          </span>
-                        )}
-                      </div>
-                      
-                      <div className="space-y-1">
-                        {dayBookings.slice(0, 3).map(booking => (
-                          <div 
-                            key={booking.id}
-                            className={`text-xs p-1 rounded truncate cursor-pointer ${
-                              booking.status === 'approved' ? 'bg-green-100 text-green-800 border border-green-200' :
-                              booking.status === 'pending' ? 'bg-yellow-100 text-yellow-800 border border-yellow-200' :
-                              'bg-red-100 text-red-800 border border-red-200'
-                            }`}
-                            onClick={() => viewBookingDetails(booking)}
-                            title={`${booking.labName} - ${booking.startTime}`}
-                          >
-                            <div className="font-medium truncate">{booking.labName}</div>
-                            <div className="truncate">{booking.startTime} - {booking.user.split(' ')[0]}</div>
-                          </div>
-                        ))}
-                        
-                        {dayBookings.length > 3 && (
-                          <div className="text-xs text-gray-500 text-center">
-                            +{dayBookings.length - 3} more
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              
-              <div className="mt-6 flex flex-wrap gap-4">
-                <div className="flex items-center">
-                  <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
-                  <span className="text-sm text-gray-600">Confirmed</span>
-                </div>
-                <div className="flex items-center">
-                  <div className="w-3 h-3 bg-yellow-500 rounded-full mr-2"></div>
-                  <span className="text-sm text-gray-600">Pending</span>
-                </div>
-                <div className="flex items-center">
-                  <div className="w-3 h-3 bg-red-500 rounded-full mr-2"></div>
-                  <span className="text-sm text-gray-600">Rejected</span>
-                </div>
-                <div className="flex items-center">
-                  <div className="w-3 h-3 bg-blue-500 rounded-full mr-2"></div>
-                  <span className="text-sm text-gray-600">Today</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Labs Overview */}
-        <div className="mt-6 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4">Labs Overview</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {labs.map(lab => {
-              const labBookings = bookings.filter(b => b.labId === lab.id && b.status === 'approved');
-              const todayBookings = labBookings.filter(b => b.date === today);
-              
-              return (
-                <div key={lab.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition">
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <h3 className="font-semibold text-gray-800">{lab.name}</h3>
-                      <p className="text-sm text-gray-500">{lab.location}</p>
-                    </div>
-                    <span className={`px-2 py-1 text-xs rounded ${
-                      lab.status === 'tersedia' ? 'bg-green-100 text-green-800' :
-                      lab.status === 'digunakan' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-red-100 text-red-800'
-                    }`}>
-                      {lab.status}
-                    </span>
-                  </div>
-                  
-                  <div className="flex items-center text-sm text-gray-600 mb-3">
-                    <Users size={14} className="mr-1" />
-                    <span>Capacity: {lab.capacity}</span>
-                    <span className="mx-2">•</span>
-                    <span>{lab.type}</span>
-                  </div>
-                  
-                  <div className="text-sm text-gray-600 mb-3">
-                    <div className="font-medium mb-1">Facilities:</div>
-                    <div className="flex flex-wrap gap-1">
-                      {lab.facilities.map((facility, idx) => (
-                        <span key={idx} className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded">
-                          {facility}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  <div className="text-xs text-gray-500">
-                    {labBookings.length} confirmed bookings • {todayBookings.length} today
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      {/* Add/Edit Booking Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <div className="flex justify-between items-center">
-                <h3 className="text-xl font-semibold text-gray-800">
-                  {newBooking.labId ? 'Edit Booking' : 'Add New Booking'}
-                </h3>
-                <button 
-                  onClick={() => setShowAddModal(false)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <XCircle size={24} />
-                </button>
-              </div>
-            </div>
-            
-            <div className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Laboratory *</label>
-                    <select 
-                      name="labId"
-                      value={newBooking.labId}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">Select Lab</option>
-                      {labs.map(lab => (
-                        <option key={lab.id} value={lab.id}>
-                          {lab.name} ({lab.capacity} seats, {lab.status})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Requester Name *</label>
-                    <input 
-                      type="text" 
-                      name="user"
-                      value={newBooking.user}
-                      onChange={handleInputChange}
-                      placeholder="Dr. Full Name"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
-                    <input 
-                      type="email" 
-                      name="userEmail"
-                      value={newBooking.userEmail}
-                      onChange={handleInputChange}
-                      placeholder="email@university.edu"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Department *</label>
-                    <select 
-                      name="department"
-                      value={newBooking.department}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">Select Department</option>
-                      {departments.map(dept => (
-                        <option key={dept} value={dept}>{dept}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-                
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Purpose *</label>
-                    <input 
-                      type="text" 
-                      name="purpose"
-                      value={newBooking.purpose}
-                      onChange={handleInputChange}
-                      placeholder="Class, Research, Workshop, etc."
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Date *</label>
-                      <input 
-                        type="date" 
-                        name="date"
-                        value={newBooking.date}
-                        onChange={handleInputChange}
-                        min={new Date().toISOString().split('T')[0]}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Attendees</label>
-                      <input 
-                        type="number" 
-                        name="attendees"
-                        value={newBooking.attendees}
-                        onChange={handleInputChange}
-                        min="1"
-                        max="50"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Start Time *</label>
-                      <input 
-                        type="time" 
-                        name="startTime"
-                        value={newBooking.startTime}
-                        onChange={handleInputChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">End Time *</label>
-                      <input 
-                        type="time" 
-                        name="endTime"
-                        value={newBooking.endTime}
-                        onChange={handleInputChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
-                    <select 
-                      name="priority"
-                      value={newBooking.priority}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="normal">Normal</option>
-                      <option value="high">High</option>
-                      <option value="medium">Medium</option>
-                      <option value="low">Low</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="mt-6">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Notes (Optional)</label>
-                <textarea 
-                  name="notes"
-                  value={newBooking.notes}
-                  onChange={handleInputChange}
-                  placeholder="Special requirements, equipment needed, etc."
-                  rows="3"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                ></textarea>
-              </div>
-              
-              <div className="mt-6 flex justify-end space-x-3">
-                <button 
-                  onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button 
-                  onClick={addBooking}
-                  className="px-6 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700"
-                >
-                  {newBooking.labId ? 'Update Booking' : 'Create Booking'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Booking Details Modal */}
-      {showModal && selectedBooking && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-            <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-indigo-600">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h3 className="text-xl font-semibold text-white">Booking Details #{selectedBooking.id}</h3>
-                  <p className="text-blue-100 text-sm">{selectedBooking.labName}</p>
-                </div>
-                <button 
-                  onClick={() => setShowModal(false)}
-                  className="text-white hover:text-blue-200"
-                >
-                  <XCircle size={24} />
-                </button>
-              </div>
-            </div>
-            
-            <div className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                {/* Lab Info */}
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h4 className="text-sm font-medium text-gray-500 mb-3">LAB INFORMATION</h4>
-                  <div className="flex items-center mb-4">
-                    <div className="h-12 w-12 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
-                      <Building size={24} className="text-blue-600" />
-                    </div>
-                    <div>
-                      <div className="font-semibold text-gray-900">{selectedBooking.labName}</div>
-                      <div className="text-sm text-gray-500">ID: {selectedBooking.labId}</div>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center text-sm text-gray-600">
-                      <Users size={14} className="mr-2" />
-                      Capacity: {labs.find(l => l.id === selectedBooking.labId)?.capacity || 'N/A'}
-                    </div>
-                    <div className="flex items-center text-sm text-gray-600">
-                      <Target size={14} className="mr-2" />
-                      Type: {labs.find(l => l.id === selectedBooking.labId)?.type || 'N/A'}
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Requester Info */}
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h4 className="text-sm font-medium text-gray-500 mb-3">REQUESTER INFORMATION</h4>
-                  <div className="flex items-center mb-4">
-                    <div className="h-12 w-12 bg-green-100 rounded-full flex items-center justify-center mr-3">
-                      <User size={24} className="text-green-600" />
-                    </div>
-                    <div>
-                      <div className="font-semibold text-gray-900">{selectedBooking.user}</div>
-                      <div className="text-sm text-gray-500">{selectedBooking.department}</div>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center text-sm text-gray-600">
-                      <Mail size={14} className="mr-2" />
-                      {selectedBooking.userEmail}
-                    </div>
-                    <div className="text-sm text-gray-600">
-                      Purpose: {selectedBooking.purpose}
-                    </div>
-                  </div>
+              <div className="flex flex-col md:flex-row md:items-start gap-4">
+                {/* Lab Icon */}
+                <div className="w-16 h-16 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                  </svg>
                 </div>
                 
                 {/* Booking Details */}
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h4 className="text-sm font-medium text-gray-500 mb-3">BOOKING DETAILS</h4>
-                  <div className="space-y-3">
-                    <div>
-                      <div className="text-sm text-gray-500">Date & Time</div>
-                      <div className="font-medium text-gray-900">{selectedBooking.date}</div>
-                      <div className="text-sm text-gray-700">
-                        {selectedBooking.startTime} - {selectedBooking.endTime}
+                <div className="flex-1">
+                  <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+                    <div className="flex-1">
+                      <h3 className="font-bold text-lg text-gray-800 mb-1">
+                        {booking.activityTitle}
+                      </h3>
+                      <div className="flex flex-wrap gap-2 mb-2">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          {booking.labName} {/* AKAN TERISI KARENA POPULATE */}
+                        </span>
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                          {booking.subject}
+                        </span>
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                          {booking.classGroup}
+                        </span>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-gray-600">
+                        <div className="flex items-center gap-2">
+                          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          <span>{formatDate(booking.bookingDate)}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <span>{formatTime(booking.startTime)} - {formatTime(booking.endTime)}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                          </svg>
+                          <span>{booking.teacherName}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                          <span>{booking.labLocation} {/* AKAN TERISI KARENA POPULATE */}</span>
+                        </div>
+                      </div>
+                      
+                      {booking.description && (
+                        <p className="mt-3 text-sm text-gray-600 line-clamp-2">
+                          {booking.description}
+                        </p>
+                      )}
+                    </div>
+                    
+                    <div className="flex flex-col items-end gap-3">
+                      {getStatusBadge(booking.status)}
+                      <div className="text-xs text-gray-500 text-right">
+                        Diajukan: {booking.createdAt}
                       </div>
                     </div>
-                    <div>
-                      <div className="text-sm text-gray-500">Status</div>
-                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(selectedBooking.status)}`}>
-                        {getStatusText(selectedBooking.status)}
-                      </span>
+                  </div>
+                  
+                  <div className="mt-4 pt-4 border-t border-gray-100 flex justify-between items-center">
+                    <div className="text-xs text-gray-500">
+                      ID: {booking._id?.substring(0, 8)}...
                     </div>
-                    <div>
-                      <div className="text-sm text-gray-500">Created</div>
-                      <div className="text-sm text-gray-700">{selectedBooking.createdAt}</div>
+                    <div className="flex gap-2">
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => openDetail(booking)}
+                        className="flex items-center gap-1"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Detail & Aksi
+                      </Button>
                     </div>
                   </div>
                 </div>
               </div>
-              
-              {/* Additional Info */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <div className="bg-white border border-gray-200 rounded-lg p-4">
-                  <h4 className="text-sm font-medium text-gray-500 mb-3">ATTENDANCE & PRIORITY</h4>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-600">Expected Attendees</span>
-                      <span className="font-semibold text-gray-900">{selectedBooking.attendees} people</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-600">Priority Level</span>
-                      <span className={`px-3 py-1 rounded-full text-sm ${getPriorityColor(selectedBooking.priority)}`}>
-                        {selectedBooking.priority}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="bg-white border border-gray-200 rounded-lg p-4">
-                  <h4 className="text-sm font-medium text-gray-500 mb-3">NOTES</h4>
-                  {selectedBooking.notes ? (
-                    <div className="text-gray-700 whitespace-pre-wrap">{selectedBooking.notes}</div>
-                  ) : (
-                    <div className="text-gray-400 italic">No notes provided</div>
-                  )}
-                </div>
-              </div>
-              
-              {/* Action Buttons */}
-              <div className="border-t border-gray-200 pt-6">
-                <div className="flex flex-wrap gap-3">
-                  <button 
-                    onClick={() => {
-                      navigator.clipboard.writeText(JSON.stringify(selectedBooking, null, 2));
-                      alert('Booking details copied to clipboard!');
-                    }}
-                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 flex items-center"
-                  >
-                    <Copy size={16} className="mr-2" />
-                    Copy Details
-                  </button>
-                  
-                  <button 
-                    onClick={() => editBooking(selectedBooking)}
-                    className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 flex items-center"
-                  >
-                    <Edit size={16} className="mr-2" />
-                    Edit Booking
-                  </button>
-                  
-                  {selectedBooking.status === 'pending' && (
-                    <>
-                      <button 
-                        onClick={() => {
-                          updateBookingStatus(selectedBooking.id, 'dikonfirmasi');
-                          alert('Booking confirmed!');
-                        }}
-                        className="px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 flex items-center"
-                      >
-                        <CheckSquare size={16} className="mr-2" />
-                        Confirm Booking
-                      </button>
-                      <button 
-                        onClick={() => {
-                          updateBookingStatus(selectedBooking.id, 'ditolak');
-                          alert('Booking rejected!');
-                        }}
-                        className="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 flex items-center"
-                      >
-                        <XCircle size={16} className="mr-2" />
-                        Reject Booking
-                      </button>
-                    </>
-                  )}
-                  
-                  <button 
-                    onClick={() => {
-                      if (window.confirm('Are you sure you want to delete this booking?')) {
-                        deleteBooking(selectedBooking.id);
-                      }
-                    }}
-                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center ml-auto"
-                  >
-                    <Trash2 size={16} className="mr-2" />
-                    Delete Booking
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
+            </Card>
+          ))}
         </div>
       )}
-      
-      {/* Footer */}
-      <div className="bg-white border-t border-gray-200 px-6 py-4">
-        <div className="flex flex-col md:flex-row md:items-center justify-between text-sm text-gray-500">
-          <div>
-            <span className="font-medium text-gray-700">Booking Management System v2.0</span> • 
-            Last updated: {new Date().toLocaleDateString('id-ID')}
+
+      {/* ================= MODAL DETAIL ================= */}
+      {/* UI MODAL PERTAHANAN SAMA DENGAN ACTION APPROVE/REJECT */}
+      <Modal
+        isOpen={showDetailModal}
+        onClose={closeDetail}
+        title={
+          <div className="flex items-center gap-2">
+            <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>Detail Booking</span>
           </div>
-          <div className="mt-2 md:mt-0">
-            <div className="flex items-center">
-              <div className="h-2 w-2 bg-green-500 rounded-full mr-2"></div>
-              <span>System Active • Total {bookings.length} bookings</span>
+        }
+        size="lg"
+      >
+        {selectedBooking && (
+          <div className="space-y-6">
+            {/* Header */}
+            <div className="flex justify-between items-start">
+              <div>
+                <h3 className="text-xl font-bold text-gray-800">{selectedBooking.activityTitle}</h3>
+                <p className="text-gray-600">{selectedBooking.subject} • {selectedBooking.classGroup}</p>
+              </div>
+              {getStatusBadge(selectedBooking.status)}
+            </div>
+
+            {/* Booking Details Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <DetailItem label="Laboratorium" value={selectedBooking.labName} />
+              <DetailItem label="Lokasi" value={selectedBooking.labLocation} />
+              <DetailItem label="Pengajar" value={selectedBooking.teacherName} />
+              <DetailItem label="Email" value={selectedBooking.userEmail} small />
+              <DetailItem label="Mata Pelajaran" value={selectedBooking.subject} />
+              <DetailItem label="Kelas" value={selectedBooking.classGroup} />
+              <DetailItem label="Tanggal" value={formatDate(selectedBooking.bookingDate)} />
+              <DetailItem label="Waktu" value={`${formatTime(selectedBooking.startTime)} - ${formatTime(selectedBooking.endTime)}`} />
+            </div>
+
+            {/* Description */}
+            {selectedBooking.description && (
+              <div>
+                <h4 className="font-medium text-gray-700 mb-2">Deskripsi Kegiatan</h4>
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <p className="text-gray-700 whitespace-pre-wrap">{selectedBooking.description}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Admin Notes Section - SAMA DENGAN SEBELUMNYA */}
+            <div className="pt-4 border-t border-gray-200">
+              <h4 className="font-medium text-gray-700 mb-3">Catatan Admin</h4>
+              <textarea
+                value={remarks}
+                onChange={(e) => setRemarks(e.target.value)}
+                placeholder="Tulis catatan untuk guru (alasan persetujuan/penolakan, instruksi, dll)..."
+                rows={4}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              />
+              
+              {selectedBooking.remarks && (
+                <div className="mt-3">
+                  <h5 className="text-sm font-medium text-gray-600 mb-1">Catatan Sebelumnya:</h5>
+                  <div className="bg-yellow-50 p-3 rounded-lg">
+                    <p className="text-yellow-800 text-sm">{selectedBooking.remarks}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Action Buttons - SAMA DENGAN SEBELUMNYA */}
+            <div className="pt-4 border-t border-gray-200 space-y-4">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h4 className="font-medium text-gray-700 mb-2">Status Saat Ini</h4>
+                  <p className="text-sm text-gray-600">
+                    {selectedBooking.status === 'pending' && 'Booking menunggu persetujuan'}
+                    {selectedBooking.status === 'approved' && 'Booking telah disetujui'}
+                    {selectedBooking.status === 'rejected' && 'Booking telah ditolak'}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <h4 className="font-medium text-gray-700 mb-2">Tanggal Diajukan</h4>
+                  <p className="text-sm text-gray-600">{selectedBooking.createdAt}</p>
+                </div>
+              </div>
+              
+              <div className="flex flex-wrap gap-3">
+                <Button
+                  variant="outline"
+                  onClick={handleSendNote}
+                  disabled={!remarks.trim()}
+                  className="flex-1"
+                >
+                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                  </svg>
+                  Kirim Catatan
+                </Button>
+                
+                {selectedBooking.status === 'pending' && (
+                  <>
+                    <Button
+                      onClick={() => updateBookingStatus('approved')}
+                      variant="success"
+                      className="flex-1"
+                    >
+                      <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                      </svg>
+                      Setujui Booking
+                    </Button>
+                    
+                    <Button
+                      onClick={() => updateBookingStatus('rejected')}
+                      variant="danger"
+                      className="flex-1"
+                    >
+                      <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                      Tolak Booking
+                    </Button>
+                  </>
+                )}
+              </div>
+              
+              {/* Completed or Rejected Status Info */}
+              {(selectedBooking.status === 'approved' || selectedBooking.status === 'rejected') && selectedBooking.approvedAt && (
+                <div className="mt-4 p-3 bg-green-50 rounded-lg">
+                  <p className="text-green-800 text-sm">
+                    Booking ini telah {selectedBooking.status === 'approved' ? 'disetujui' : 'ditolak'} pada{' '}
+                    {new Date(selectedBooking.approvedAt).toLocaleString('id-ID')}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
-        </div>
-      </div>
+        )}
+      </Modal>
     </div>
   );
 };
+
+// Helper Component for Detail Items
+const DetailItem = ({ label, value, small = false }) => (
+  <div>
+    <h4 className={`font-medium ${small ? 'text-gray-500 text-sm' : 'text-gray-700'}`}>{label}</h4>
+    <p className={`mt-1 ${small ? 'text-gray-600 text-sm' : 'text-gray-900'}`}>
+      {value || <span className="text-gray-400">Tidak tersedia</span>}
+    </p>
+  </div>
+);
 
 export default BookingManagement;
