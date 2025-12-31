@@ -39,6 +39,6 @@ export const useBookings = () => {
     bookings,
     loading,
     error,
-    refetch: fetchBookings // Untuk refresh data
+    refetch: fetchBookings
   };
 };

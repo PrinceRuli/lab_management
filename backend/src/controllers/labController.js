@@ -60,7 +60,7 @@ const createLab = async (req, res) => {
 
     const { name, capacity, location, facilities, status, openingTime, closingTime } = req.body;
     
-    // ⭐⭐ PERBAIKAN: Validasi lebih lengkap ⭐⭐
+    // Validasi
     if (!name || !name.trim()) {
       return res.status(400).json({ 
         success: false,
@@ -91,7 +91,7 @@ const createLab = async (req, res) => {
       });
     }
 
-    // ⭐⭐ PERBAIKAN: Parsing fasilitas yang lebih robust ⭐⭐
+    // Validasi fasilitas
     let facilitiesArray = [];
     if (facilities !== undefined && facilities !== null) {
       if (Array.isArray(facilities)) {
@@ -106,16 +106,16 @@ const createLab = async (req, res) => {
 
     console.log('🔧 Parsed facilities:', facilitiesArray);
 
-    // ⭐⭐ PERBAIKAN: Data yang akan disimpan ⭐⭐
+    // Prepare data
     const labData = {
       name: name.trim(),
       location: location.trim(),
-      capacity: Math.floor(capacityNum), // Pastikan integer
+      capacity: Math.floor(capacityNum),
       facilities: facilitiesArray,
-      status: status || 'available', // Gunakan 'available' bukan 'tersedia'
+      status: status || 'available',
       openingTime: openingTime || '08:00',
       closingTime: closingTime || '17:00',
-      createdBy: req.user?.id // Tambahkan createdBy dari user yang login
+      createdBy: req.user?.id
     };
 
     console.log('💾 Lab data to be created:', labData);
@@ -175,7 +175,7 @@ const updateLab = async (req, res) => {
 
     const { id } = req.params;
     
-    // ⭐⭐ PERBAIKAN: Validasi ID ⭐⭐
+    // Validasi ID
     if (!id) {
       return res.status(400).json({
         success: false,
@@ -196,7 +196,7 @@ const updateLab = async (req, res) => {
     
     console.log('✅ Lab ditemukan:', lab.name);
 
-    // ⭐⭐ PERBAIKAN: Validasi data input ⭐⭐
+    // Update data
     if (req.body.name !== undefined) {
       if (!req.body.name.trim()) {
         return res.status(400).json({
@@ -231,7 +231,7 @@ const updateLab = async (req, res) => {
       console.log('✏️ Update capacity:', lab.capacity);
     }
 
-    // ⭐⭐ PERBAIKAN: Handle facilities dengan benar ⭐⭐
+    // Fasilitas
     if (req.body.facilities !== undefined) {
       if (Array.isArray(req.body.facilities)) {
         lab.facilities = req.body.facilities;
@@ -246,7 +246,7 @@ const updateLab = async (req, res) => {
       console.log('✏️ Update facilities:', lab.facilities);
     }
 
-    // ⭐⭐ PERBAIKAN: Status yang benar - sesuai dengan frontend ⭐⭐
+    // Status
     if (req.body.status !== undefined) {
       const validStatuses = ['available', 'occupied', 'maintenance'];
       if (validStatuses.includes(req.body.status)) {

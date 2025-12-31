@@ -1,7 +1,6 @@
-// src/pages/Auth/LoginForm.js - TAMBAHKAN TOMBOL BACK
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FaEnvelope, FaLock, FaFlask, FaArrowLeft } from 'react-icons/fa'; // Tambah FaArrowLeft
+import { FaEnvelope, FaLock, FaFlask, FaArrowLeft } from 'react-icons/fa';
 import Input from '../../components/common/Input';
 import Button from '../../components/common/Button';
 import { useAuth } from '../../context/AuthContext';

@@ -13,7 +13,6 @@ import {
   FaClock,
   FaUsers,
   FaBuilding,
-  /* FaCheckCircle, */
   FaGraduationCap,
   FaFlask,
   FaMicroscope,

@@ -1,4 +1,3 @@
-// src/services/api.js - VERSION COMPLETE
 import axios from 'axios';
 
 
@@ -8,7 +7,7 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api
 // Create axios instance
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000, // 10 seconds timeout
+  timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
@@ -207,5 +206,5 @@ export const bookingAPI = {
     api.get('/bookings/my-bookings'),
 };
 
-// Export default instance
+
 export default api;

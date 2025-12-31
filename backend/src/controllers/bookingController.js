@@ -1,4 +1,3 @@
-
 const Booking = require('../models/Booking');
 const Notification = require('../models/Notification');
 const Lab = require('../models/Lab');
@@ -17,14 +16,14 @@ const getApprovedSchedules = async (req, res) => {
     // Find all approved bookings
     const schedules = await Booking.find({
       status: 'approved',
-      bookingDate: { $gte: today } // Only future or today's schedules
+      bookingDate: { $gte: today }
     })
     .populate('lab', 'name location photo')
     .populate('user', 'name email')
     .populate('teacher', 'name email')
     .populate('approvedBy', 'name')
-    .sort({ bookingDate: 1, startTime: 1 }) // Sort by nearest date
-    .limit(12); // Limit for landing page
+    .sort({ bookingDate: 1, startTime: 1 }) 
+    .limit(12); 
 
     console.log(`Found ${schedules.length} approved schedules`);
 
@@ -100,11 +99,11 @@ const getAllSchedules = async (req, res) => {
     const skip = (page - 1) * limit;
 
     // Build filter
-    let filter = { status: 'approved' }; // Default show only approved
+    let filter = { status: 'approved' };
     
     if (lab) filter.lab = lab;
     if (day) filter.day = day;
-    if (subject) filter.subject = new RegExp(subject, 'i'); // Case-insensitive search
+    if (subject) filter.subject = new RegExp(subject, 'i');
     
     if (startDate && endDate) {
       filter.bookingDate = {

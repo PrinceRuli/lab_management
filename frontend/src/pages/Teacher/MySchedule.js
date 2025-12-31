@@ -43,7 +43,7 @@ const MySchedule = () => {
           startTime: booking.startTime,
           endTime: booking.endTime,
           description: booking.description,
-          status: 'upcoming', // Schedule status
+          status: 'upcoming',
           photo: booking.photo || '/assets/images/lab_image.jpg',
           type: 'Praktikum',
           students: booking.classGroup ? parseInt(booking.classGroup.split(' ')[1]) * 10 || 30 : 30

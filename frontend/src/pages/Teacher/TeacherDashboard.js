@@ -1,4 +1,3 @@
-// src/pages/Teacher/TeacherDashboard.js
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FaCalendarAlt, FaFlask, FaClock, FaCheckCircle, FaExclamationTriangle, FaUsers } from 'react-icons/fa';
@@ -121,7 +120,7 @@ const TeacherDashboard = () => {
           console.log('Processed data:', {
             bookingsCount: bookingsData.length,
             labsCount: labsData.length,
-            bookingsData: bookingsData.slice(0, 3) // Log first 3 bookings
+            bookingsData: bookingsData.slice(0, 3)
           });
 
           // Filter available labs

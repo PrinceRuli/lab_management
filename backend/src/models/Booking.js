@@ -41,7 +41,7 @@ const bookingSchema = new mongoose.Schema({
   },
 
   photo: {
-    type: String, // URL / path image
+    type: String,
     default: '/assets/images/lab_image.jpg',
   },
 
@@ -52,7 +52,7 @@ const bookingSchema = new mongoose.Schema({
   },
 
   day: {
-    type: String, // Senin, Selasa, dst
+    type: String,
   },
 
   startTime: {

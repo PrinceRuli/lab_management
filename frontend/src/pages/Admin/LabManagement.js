@@ -276,7 +276,7 @@ const LabManagement = () => {
         </div>
       </div>
     ), {
-      duration: 10000, // 10 detik
+      duration: 10000,
     });
   };
 

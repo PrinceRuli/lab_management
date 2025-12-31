@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
-/* import Modal from '../../components/common/Modal'; */
 import { bookingAPI, labAPI } from '../../services/api';
 
 const ReportAnalytics = () => {
@@ -97,13 +96,13 @@ const ReportAnalytics = () => {
       return {
         name: lab.name,
         digunakan: confirmed,
-        tersedia: Math.max(0, 20 - confirmed), // Example capacity
+        tersedia: Math.max(0, 20 - confirmed),
         maintenance: lab.status === 'maintenance' ? 1 : 0
       };
     });
     setLabUsageData(labUsage);
 
-    // 3. Booking trend (last 6 months)
+    // 3. Booking trend
     const last6Months = Array.from({ length: 6 }, (_, i) => {
       const date = new Date();
       date.setMonth(date.getMonth() - (5 - i));

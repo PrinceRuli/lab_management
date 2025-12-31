@@ -1,4 +1,3 @@
-// src/components/common/Table.js
 import React from 'react';
 
 const Table = ({ headers, children, className = '' }) => {

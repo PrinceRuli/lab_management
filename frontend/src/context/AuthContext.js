@@ -1,4 +1,3 @@
-// src/context/AuthContext.js
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import api from '../services/api';

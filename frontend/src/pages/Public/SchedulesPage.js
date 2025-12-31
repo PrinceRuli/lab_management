@@ -1,4 +1,3 @@
-// src/pages/Public/SchedulesPage.jsx - VERSI HANYA APPROVED UNTUK PUBLIC
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { 
@@ -65,10 +64,7 @@ const SchedulesPage = () => {
       setError(null);
       console.log('🔄 Memuat jadwal yang DISETUJUI untuk publik...');
       
-      // OPTION 1: Gunakan endpoint khusus approved schedules
-      // const response = await bookingAPI.getApprovedSchedules();
       
-      // OPTION 2: Jika endpoint khusus tidak ada, filter dari semua data
       const response = await bookingAPI.getApprovedSchedules();
       
       console.log('📊 Response API bookings:', response.data);
@@ -346,7 +342,7 @@ const SchedulesPage = () => {
 
   // ================= FILTER & SORT =================
   const filteredBookings = useMemo(() => {
-    let result = [...bookings]; // Semua booking di sini sudah approved
+    let result = [...bookings];
     
     // Apply search filter
     if (searchTerm) {

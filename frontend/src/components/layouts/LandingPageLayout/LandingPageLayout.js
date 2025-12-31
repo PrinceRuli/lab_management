@@ -1,17 +1,9 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
   FaFlask,
-  /* FaHome, 
-  FaCalendarAlt,
-  FaNewspaper,
-  FaQuoteLeft,
-  FaPhone, */
   FaBars,
   FaTimes,
-  /* FaSignInAlt,
-  FaUserPlus, */
   FaFacebook,
   FaTwitter,
   FaInstagram,
