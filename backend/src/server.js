@@ -15,6 +15,7 @@ const authRoutes = require('./routes/authRoutes');
 const labRoutes = require('./routes/labRoutes');
 const bookingRoutes = require('./routes/bookingRoutes');
 const userRoutes = require('./routes/userRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
 
 const app = express();
 
@@ -79,6 +80,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/labs', labRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // ========== HEALTH CHECK ==========
 app.get('/health', (req, res) => {

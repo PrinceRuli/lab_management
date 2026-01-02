@@ -149,6 +149,75 @@ export const labAPI = {
     api.delete(`/labs/${id}`),
 };
 
+
+export const notificationAPI = {
+  getMyNotifications: async () => {
+    try {
+      console.log('🔔 [API] Fetching notifications...');
+      
+      const response = await api.get('/notifications/my-notifications');
+      
+      console.log('📩 [API] Notification API Response:', {
+        status: response.status,
+        statusText: response.statusText,
+        dataStructure: Object.keys(response.data),
+        hasSuccess: response.data.success,
+        hasNotifications: !!response.data.notifications,
+        notificationsCount: response.data.notifications?.length || 0,
+        hasData: !!response.data.data,
+        dataCount: response.data.data?.length || 0,
+        unreadCount: response.data.unreadCount,
+        rawData: response.data
+      });
+      
+      // Always return consistent format
+      return {
+        ...response,
+        data: {
+          success: response.data.success || false,
+          notifications: response.data.notifications || response.data.data || [],
+          unreadCount: response.data.unreadCount || 0,
+          count: response.data.count || 0,
+          message: response.data.message || ''
+        }
+      };
+      
+    } catch (error) {
+      console.error('❌ [API] Error in notification API:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
+      
+      // Return empty but valid structure
+      return {
+        data: {
+          success: false,
+          notifications: [],
+          unreadCount: 0,
+          count: 0,
+          message: error.message
+        }
+      };
+    }
+  },
+
+  // Mark all as read
+  markAllAsRead: () => {
+    return api.put('/notifications/read-all');
+  },
+
+  // Delete single notification
+  deleteNotification: (notificationId) => {
+    return api.delete(`/notifications/${notificationId}`);
+  },
+
+  // Clear all notifications
+  clearAllNotifications: () => {
+    return api.delete('/notifications');
+  }
+};
+
 export const bookingAPI = {
 
   getApprovedSchedules: () =>

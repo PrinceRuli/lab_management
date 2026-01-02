@@ -18,8 +18,7 @@ const TeacherDashboard = () => {
   const [error, setError] = useState(null);
   const [upcomingBookings, setUpcomingBookings] = useState([]);
   const [recentActivities, setRecentActivities] = useState([]);
-  const [today, setToday] = useState('');
-  const [teacherName, setTeacherName] = useState('');
+  
 
   // ================= FETCH DATA =================
   useEffect(() => {
@@ -29,33 +28,8 @@ const TeacherDashboard = () => {
         setError(null);
         
         console.log('📊 Fetching teacher dashboard data...');
+      
         
-        // Set today's date
-        const now = new Date();
-        const todayStr = now.toLocaleDateString('id-ID', {
-          weekday: 'long',
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric'
-        });
-        setToday(todayStr);
-        
-        // Get teacher info from localStorage
-        const storedUser = localStorage.getItem('user');
-        
-        let teacherName = 'Guru';
-        
-        if (storedUser) {
-          try {
-            const user = JSON.parse(storedUser);
-            
-            teacherName = user.name || user.username || teacherName;
-          } catch (e) {
-            console.warn('Failed to parse user from localStorage:', e);
-          }
-        }
-        
-        setTeacherName(teacherName);
         
         // Import API services
         const { bookingAPI, labAPI } = await import('../../services/api');
@@ -263,27 +237,7 @@ const TeacherDashboard = () => {
 
     // Fallback data initialization
     const initializeFallbackData = () => {
-      const now = new Date();
-      const todayStr = now.toLocaleDateString('id-ID', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      });
-      setToday(todayStr);
       
-      // Set teacher name from localStorage
-      const storedUser = localStorage.getItem('user');
-      if (storedUser) {
-        try {
-          const user = JSON.parse(storedUser);
-          setTeacherName(user.name || user.username || 'Guru');
-        } catch (e) {
-          setTeacherName('Guru');
-        }
-      } else {
-        setTeacherName('Guru');
-      }
       
       // Set fallback data
       setStats({

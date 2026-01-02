@@ -1,6 +1,7 @@
 const Booking = require('../models/Booking');
 const Notification = require('../models/Notification');
 const Lab = require('../models/Lab');
+const User = require('../models/User');
 
 // @desc    Get approved schedules for landing page
 // @route   GET /api/bookings/schedules/approved
@@ -8,22 +9,21 @@ const Lab = require('../models/Lab');
 const getApprovedSchedules = async (req, res) => {
   try {
     console.log('=== Fetching approved schedules for landing page ===');
-    
+
     // Get current date
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     // Find all approved bookings
     const schedules = await Booking.find({
       status: 'approved',
       bookingDate: { $gte: today }
     })
-    .populate('lab', 'name location photo')
-    .populate('user', 'name email')
-    .populate('teacher', 'name email')
-    .populate('approvedBy', 'name')
-    .sort({ bookingDate: 1, startTime: 1 }) 
-    .limit(12); 
+      .populate('lab', 'name location photo')
+      .populate('user', 'name email')
+      .populate('teacher', 'name email')
+      .populate('approvedBy', 'name')
+      .sort({ bookingDate: 1, startTime: 1 })
 
     console.log(`Found ${schedules.length} approved schedules`);
 
@@ -85,26 +85,26 @@ const getApprovedSchedules = async (req, res) => {
 // @access  Public
 const getAllSchedules = async (req, res) => {
   try {
-    const { 
-      page = 1, 
-      limit = 20, 
-      lab, 
+    const {
+      page = 1,
+      limit = 20,
+      lab,
       status = 'approved',
       startDate,
       endDate,
       day,
       subject
     } = req.query;
-    
+
     const skip = (page - 1) * limit;
 
     // Build filter
     let filter = { status: 'approved' };
-    
+
     if (lab) filter.lab = lab;
     if (day) filter.day = day;
     if (subject) filter.subject = new RegExp(subject, 'i');
-    
+
     if (startDate && endDate) {
       filter.bookingDate = {
         $gte: new Date(startDate),
@@ -198,10 +198,10 @@ const getTodaySchedules = async (req, res) => {
         $lt: tomorrow
       }
     })
-    .populate('lab', 'name location')
-    .populate('teacher', 'name')
-    .sort({ startTime: 1 })
-    .limit(10);
+      .populate('lab', 'name location')
+      .populate('teacher', 'name')
+      .sort({ startTime: 1 })
+      .limit(10);
 
     const formattedSchedules = schedules.map(schedule => ({
       id: schedule._id,
@@ -322,21 +322,17 @@ const createBooking = async (req, res) => {
 
     // ✅ SIMPAN
     const booking = await Booking.create({
-      lab: labId,
+      ...req.body,
       user: req.user.id,
-      teacher: req.user.role === 'teacher' ? req.user.id : undefined,
+      teacherName: req.user.name
+    });
 
-      teacherName,
-      subject,
-      activityTitle,
-      description,
-      day,
-      classGroup,
-
-      bookingDate: new Date(bookingDate),
-      startTime: normStart,
-      endTime: normEnd,
-
+    // AUTO-CREATE NOTIFICATION untuk teacher
+    await Notification.create({
+      recipient: req.user.id,
+      booking: booking._id,
+      message: `Booking untuk "${req.body.activityTitle || 'Laboratorium'}" telah diajukan. Menunggu persetujuan admin.`,
+      read: false
     });
 
     res.status(201).json({
@@ -414,52 +410,138 @@ const getBookingById = async (req, res) => {
   }
 };
 
-// @desc    Update booking status
+// @desc    Update booking status - PERBAIKI NOTIFICATION
 // @route   PUT /api/bookings/:id
 // @access  Private/Admin or Teacher
 const updateBookingStatus = async (req, res) => {
   try {
-    const { status, remarks } = req.body;
-    const booking = await Booking.findById(req.params.id);
+    const { status, remarks, rejectionReason } = req.body;
+    
+    let booking = await Booking.findById(req.params.id)
+      .populate('lab', 'name location')
+      .populate('user', 'name email');
 
     if (!booking) {
-      return res.status(404).json({ message: 'Booking not found' });
+      return res.status(404).json({ 
+        success: false,
+        message: 'Booking not found' 
+      });
     }
 
-    // Hanya admin atau teacher terkait yang bisa approve/reject
-    if (req.user.role === 'teacher' && booking.teacher.toString() !== req.user.id) {
-      return res.status(403).json({ message: 'Not authorized' });
+    // Authorization check
+    const isOwner = booking.user._id.toString() === req.user.id;
+    const isTeacher = booking.teacher?.toString() === req.user.id;
+    
+    if (req.user.role === 'teacher' && !isOwner && !isTeacher) {
+      return res.status(403).json({ 
+        success: false,
+        message: 'Not authorized to update this booking' 
+      });
     }
 
-    booking.status = status;
-    if (remarks !== undefined) booking.remarks = remarks;
+    // Only admin can approve/reject bookings
+    if (['approved', 'rejected'].includes(status) && req.user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only admin can approve or reject bookings'
+      });
+    }
 
+    // Update booking
+    const updateData = { status };
+    
+    if (remarks !== undefined) updateData.remarks = remarks;
+    if (rejectionReason !== undefined) updateData.rejectionReason = rejectionReason;
+    
     if (status === 'approved' || status === 'rejected') {
-      booking.approvedBy = req.user.id;
-      booking.approvedAt = new Date();
+      updateData.approvedBy = req.user.id;
+      updateData.approvedAt = new Date();
     }
 
-    const updatedBooking = await booking.save();
+    booking = await Booking.findByIdAndUpdate(
+      req.params.id,
+      updateData,
+      { new: true, runValidators: true }
+    )
+      .populate('lab', 'name location')
+      .populate('user', 'name email');
 
-    // Create a notification for the teacher (or user) about the status change / remarks
-    try {
-      const recipient = booking.teacher || booking.user;
-      if (recipient) {
-        const message = `Booking #${booking._id} status updated to ${status}${remarks ? ` — Note: ${remarks}` : ''}`;
+    // ✅ AUTO-CREATE NOTIFICATION untuk guru yang buat booking
+    if (status && status !== booking.status) {
+      let message = '';
+      let notificationType = 'info';
+      
+      const labName = booking.lab?.name || 'Laboratorium';
+      const activity = booking.activityTitle || 'Booking';
+      const bookingDate = new Date(booking.bookingDate).toLocaleDateString('id-ID');
+      const time = `${booking.startTime} - ${booking.endTime}`;
+      
+      switch (status) {
+        case 'approved':
+          message = `🎉 Booking Anda untuk "${activity}" di ${labName} pada ${bookingDate} (${time}) telah DISETUJUI.`;
+          notificationType = 'success';
+          break;
+          
+        case 'rejected':
+          const reason = rejectionReason ? ` Alasan: ${rejectionReason}` : '';
+          message = `❌ Booking Anda untuk "${activity}" di ${labName} telah DITOLAK.${reason}`;
+          notificationType = 'error';
+          break;
+          
+        case 'pending':
+          message = `⏳ Booking untuk "${activity}" di ${labName} sedang ditinjau ulang oleh admin.`;
+          break;
+          
+        case 'cancelled':
+          message = `🚫 Booking untuk "${activity}" di ${labName} telah DIBATALKAN.`;
+          break;
+          
+        default:
+          message = `📝 Status booking "${activity}" diubah menjadi ${status}.`;
+      }
+      
+      // Create notification for the teacher who made the booking
+      await Notification.create({
+        recipient: booking.user._id,
+        booking: booking._id,
+        message: message,
+        type: notificationType,
+        read: false
+      });
+      
+      console.log(`📢 Notification created for teacher ${booking.user._id}: ${message}`);
+    }
+
+    // Juga buat notifikasi untuk admin jika teacher update booking mereka sendiri
+    if (req.user.role === 'teacher' && status === 'pending') {
+      // Find admin users to notify (assuming admin role exists)
+      // You might need to adjust this based on your user model
+      const adminUsers = await User.find({ role: 'admin' }).select('_id');
+      
+      for (const admin of adminUsers) {
         await Notification.create({
-          recipient,
+          recipient: admin._id,
           booking: booking._id,
-          message,
-          link: `/bookings/${booking._id}`,
+          message: `📋 Teacher ${req.user.name} mengajukan perubahan pada booking "${booking.activityTitle}"`,
+          type: 'info',
+          read: false
         });
       }
-    } catch (notifyErr) {
-      console.error('Failed to create notification:', notifyErr.message);
     }
 
-    res.json(updatedBooking);
+    res.json({
+      success: true,
+      message: 'Booking updated successfully',
+      data: booking
+    });
+    
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('❌ Update booking status error:', error);
+    res.status(500).json({ 
+      success: false,
+      message: 'Server error',
+      error: error.message 
+    });
   }
 };
 

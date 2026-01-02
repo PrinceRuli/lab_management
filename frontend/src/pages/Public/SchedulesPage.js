@@ -1,20 +1,19 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { 
-  FaCalendarAlt, 
-  FaFilter, 
-  FaSort, 
-  FaSearch, 
-  FaClock, 
-  FaUsers, 
-  FaBuilding, 
+import {
+  FaCalendarAlt,
+  FaFilter,
+  FaSort,
+  FaSearch,
+  FaClock,
+  FaUsers,
+  FaBuilding,
   FaGraduationCap,
   FaArrowLeft,
   FaDownload,
   FaPrint,
   FaEye,
   FaExclamationTriangle,
-  FaChevronDown,
   FaCalendarDay,
   FaSync,
   FaCheckCircle,
@@ -36,9 +35,7 @@ const SchedulesPage = () => {
   const [sortOrder, setSortOrder] = useState('desc');
   const [selectedSchedule, setSelectedSchedule] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
-  const [currentDate, setCurrentDate] = useState(new Date());
   const [lastUpdated, setLastUpdated] = useState(null);
-  const [visibleCount, setVisibleCount] = useState(12);
 
   // Configuration - HANYA filter untuk approved schedules
   const FILTER_OPTIONS = [
@@ -63,14 +60,16 @@ const SchedulesPage = () => {
       setLoading(true);
       setError(null);
       console.log('🔄 Memuat jadwal yang DISETUJUI untuk publik...');
-      
+
+      const timestamp = Date.now();
+      console.log('Timestamp:', timestamp);
       
       const response = await bookingAPI.getApprovedSchedules();
-      
+
       console.log('📊 Response API bookings:', response.data);
-      
+
       let bookingsData = [];
-      
+
       // Handle berbagai format response
       if (Array.isArray(response.data)) {
         bookingsData = response.data;
@@ -82,27 +81,32 @@ const SchedulesPage = () => {
         console.warn('⚠️ Format data tidak dikenali:', response.data);
         bookingsData = [];
       }
-      
+
       console.log(`📥 Total data mentah: ${bookingsData.length}`);
-      
+
       // FILTER HANYA YANG STATUS 'approved'
-      const approvedBookings = bookingsData.filter(booking => 
+      const approvedBookings = bookingsData.filter(booking =>
         booking.status === 'approved'
       );
-      
+
       console.log(`✅ Berhasil memuat ${approvedBookings.length} booking yang DISETUJUI`);
-      
+
       // Process hanya booking yang approved
       const processedBookings = processBookings(approvedBookings);
       setBookings(processedBookings);
       setLastUpdated(new Date());
-      
+
       if (approvedBookings.length > 0) {
-        toast.success(`Menampilkan ${approvedBookings.length} jadwal yang disetujui`);
+        toast.success(`Menampilkan ${approvedBookings.length} jadwal yang disetujui`, {
+          duration: 2000,
+          position: 'top-right',
+        });
       } else {
-        toast.info('Belum ada jadwal yang disetujui');
+        toast.info('Belum ada jadwal yang disetujui', {
+          duration: 3000
+        });
       }
-      
+
     } catch (err) {
       console.error('❌ Error fetching approved schedules:', err);
       const errorMsg = err.response?.data?.message || 'Gagal memuat jadwal. Silakan coba lagi.';
@@ -116,42 +120,42 @@ const SchedulesPage = () => {
   // Process hanya booking yang approved
   const processBookings = (bookingsData) => {
     const now = new Date();
-    
+
     return bookingsData.map((booking, index) => {
       try {
         // Normalize lab data
         const labData = booking.lab || {};
         const labName = labData.name || booking.labName || 'Laboratorium';
         const labLocation = labData.location || 'Lokasi tidak tersedia';
-        
+
         // Normalize date and time
         const rawDate = booking.bookingDate || booking.tanggal;
         const bookingDate = rawDate ? new Date(rawDate) : null;
-        
+
         const startTime = booking.startTime || '';
         const durationHours = booking.durationHours || 2;
-        
+
         // Calculate schedule status (hanya untuk approved)
         const { combinedDateTime, status } = calculateScheduleStatus(bookingDate, startTime, durationHours, now);
-        
+
         // Format display
         const displayDate = formatDisplayDate(bookingDate);
         const displayTime = formatDisplayTime(startTime);
         const endTime = calculateEndTime(startTime, durationHours);
-        
+
         return {
           // ID & metadata
           _id: booking._id || `temp-${Date.now()}-${index}`,
           rawId: booking._id,
-          
+
           // Original booking data
           ...booking,
-          
+
           // Lab data
           lab: labData,
           labName,
           labLocation,
-          
+
           // Schedule data
           bookingDate,
           startTime,
@@ -161,7 +165,7 @@ const SchedulesPage = () => {
           displayTime,
           durationHours,
           endTime,
-          
+
           // Normalized fields
           teacherName: booking.teacherName || booking.user?.name || 'Pengajar',
           subject: booking.subject || 'Mata Pelajaran',
@@ -171,10 +175,10 @@ const SchedulesPage = () => {
           gradeLevel: booking.gradeLevel || '',
           semester: booking.semester || '',
           academicYear: booking.academicYear || '',
-          
+
           // Booking status (selalu 'approved' di sini)
           bookingStatus: 'approved',
-          
+
           // Additional info
           remarks: booking.remarks || '',
           approvedAt: booking.approvedAt,
@@ -192,15 +196,15 @@ const SchedulesPage = () => {
   const calculateScheduleStatus = (bookingDate, startTime, durationHours, now) => {
     let combinedDateTime = null;
     let status = 'upcoming';
-    
+
     if (bookingDate && startTime) {
       try {
         const [hours, minutes] = startTime.split(':').map(Number);
         combinedDateTime = new Date(bookingDate);
         combinedDateTime.setHours(hours || 0, minutes || 0, 0, 0);
-        
+
         const endTime = new Date(combinedDateTime.getTime() + (durationHours || 2) * 60 * 60 * 1000);
-        
+
         if (now >= combinedDateTime && now <= endTime) {
           status = 'ongoing';
         } else if (combinedDateTime < now) {
@@ -210,7 +214,7 @@ const SchedulesPage = () => {
         console.error('Error calculating schedule status:', error);
       }
     }
-    
+
     return { combinedDateTime, status };
   };
 
@@ -218,16 +222,16 @@ const SchedulesPage = () => {
     if (!date || isNaN(date.getTime())) {
       return 'Tanggal tidak tersedia';
     }
-    
+
     const today = new Date();
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
-    
+
     // Reset waktu untuk perbandingan
     const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
     const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     const tomorrowOnly = new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate());
-    
+
     if (dateOnly.getTime() === todayOnly.getTime()) {
       return 'Hari Ini';
     } else if (dateOnly.getTime() === tomorrowOnly.getTime()) {
@@ -244,7 +248,7 @@ const SchedulesPage = () => {
 
   const formatDisplayTime = (time) => {
     if (!time) return 'Waktu tidak tersedia';
-    
+
     try {
       const [hours, minutes] = time.split(':').map(Number);
       return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
@@ -255,13 +259,13 @@ const SchedulesPage = () => {
 
   const calculateEndTime = (startTime, durationHours) => {
     if (!startTime || !durationHours) return '';
-    
+
     try {
       const [hours, minutes] = startTime.split(':').map(Number);
       const totalMinutes = hours * 60 + minutes + (durationHours * 60);
       const endHours = Math.floor(totalMinutes / 60) % 24;
       const endMinutes = totalMinutes % 60;
-      
+
       return `${endHours.toString().padStart(2, '0')}:${endMinutes.toString().padStart(2, '0')}`;
     } catch {
       return '';
@@ -271,29 +275,29 @@ const SchedulesPage = () => {
   const getStatusBadge = (status) => {
     // Hanya tampilkan schedule status karena semua booking sudah approved
     const scheduleConfig = {
-      'ongoing': { 
+      'ongoing': {
         bg: 'bg-green-100 text-green-800 border border-green-200',
         icon: '🟢',
-        label: 'Sedang Berlangsung' 
+        label: 'Sedang Berlangsung'
       },
-      'upcoming': { 
+      'upcoming': {
         bg: 'bg-blue-100 text-blue-800 border border-blue-200',
         icon: '🟡',
-        label: 'Akan Datang' 
+        label: 'Akan Datang'
       },
-      'past': { 
+      'past': {
         bg: 'bg-gray-100 text-gray-800 border border-gray-200',
         icon: '⚫',
-        label: 'Selesai' 
+        label: 'Selesai'
       },
     };
-    
-    const config = scheduleConfig[status] || { 
-      bg: 'bg-gray-100 text-gray-800', 
+
+    const config = scheduleConfig[status] || {
+      bg: 'bg-gray-100 text-gray-800',
       icon: '❓',
-      label: status 
+      label: status
     };
-    
+
     return (
       <span className={`px-3 py-1 rounded-full text-xs font-medium ${config.bg} flex items-center gap-1`}>
         <span>{config.icon}</span>
@@ -302,17 +306,17 @@ const SchedulesPage = () => {
     );
   };
 
-  // Tambahkan badge "DISETUJUI" untuk semua kartu
+  // Tambahkan badge "Ready" untuk semua kartu
   const getApprovedBadge = () => (
     <div className="flex items-center gap-1 px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-semibold">
       <FaCheckCircle className="h-3 w-3" />
-      DISETUJUI
+      Ready
     </div>
   );
 
   const getSubjectIcon = (subject) => {
     const lowerSubject = (subject || '').toLowerCase();
-    
+
     const iconMap = {
       'kimia': '🧪',
       'biologi': '🔬',
@@ -330,20 +334,20 @@ const SchedulesPage = () => {
       'seni': '🎨',
       'olahraga': '⚽'
     };
-    
+
     for (const [key, icon] of Object.entries(iconMap)) {
       if (lowerSubject.includes(key)) {
         return icon;
       }
     }
-    
+
     return '📚';
   };
 
   // ================= FILTER & SORT =================
   const filteredBookings = useMemo(() => {
     let result = [...bookings];
-    
+
     // Apply search filter
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
@@ -355,25 +359,25 @@ const SchedulesPage = () => {
         booking.classGroup?.toLowerCase().includes(term)
       );
     }
-    
+
     // Apply status filter (hanya untuk schedule status)
     if (filter !== 'all') {
       if (filter === 'today') {
         const today = new Date().toDateString();
         result = result.filter(booking => {
-          const scheduleDate = booking.combinedDateTime?.toDateString() || 
-                             booking.bookingDate?.toDateString();
+          const scheduleDate = booking.combinedDateTime?.toDateString() ||
+            booking.bookingDate?.toDateString();
           return scheduleDate === today;
         });
       } else {
         result = result.filter(booking => booking.status === filter);
       }
     }
-    
+
     // Apply sorting
     result.sort((a, b) => {
       let compareA, compareB;
-      
+
       switch (sortBy) {
         case 'date':
         case 'date-asc':
@@ -396,46 +400,41 @@ const SchedulesPage = () => {
           compareA = a.combinedDateTime || new Date(0);
           compareB = b.combinedDateTime || new Date(0);
       }
-      
+
       // Handle date-asc specially
       if (sortBy === 'date-asc') {
         return compareA < compareB ? -1 : 1;
       }
-      
-      return sortOrder === 'asc' 
+
+      return sortOrder === 'asc'
         ? compareA > compareB ? 1 : -1
         : compareA < compareB ? 1 : -1;
     });
-    
+
     return result;
   }, [bookings, searchTerm, filter, sortBy, sortOrder]);
 
   // Display with pagination
-  const displayedBookings = useMemo(() => {
-    return filteredBookings.slice(0, visibleCount);
-  }, [filteredBookings, visibleCount]);
+  const displayedBookings = filteredBookings;
 
   // Calculate statistics - HANYA untuk approved
   const stats = useMemo(() => {
     const today = new Date().toDateString();
-    
+
     return {
       all: bookings.length,
       ongoing: bookings.filter(b => b.status === 'ongoing').length,
       upcoming: bookings.filter(b => b.status === 'upcoming').length,
       past: bookings.filter(b => b.status === 'past').length,
       today: bookings.filter(b => {
-        const scheduleDate = b.combinedDateTime?.toDateString() || 
-                           b.bookingDate?.toDateString();
+        const scheduleDate = b.combinedDateTime?.toDateString() ||
+          b.bookingDate?.toDateString();
         return scheduleDate === today;
       }).length,
     };
   }, [bookings]);
 
   // ================= HANDLERS =================
-  const loadMore = () => {
-    setVisibleCount(prev => prev + 12);
-  };
 
   const exportToPDF = () => {
     const data = {
@@ -444,7 +443,7 @@ const SchedulesPage = () => {
       bookings: displayedBookings,
       stats: stats
     };
-    
+
     console.log('Export data:', data);
     toast.success('Fitur export PDF akan segera tersedia');
   };
@@ -474,24 +473,51 @@ const SchedulesPage = () => {
   // ================= USE EFFECTS =================
   useEffect(() => {
     fetchApprovedSchedules();
-    
+
     // Auto-refresh every 5 minutes untuk real-time
     const refreshInterval = setInterval(() => {
       if (!loading) {
         fetchApprovedSchedules();
       }
     }, 5 * 60 * 1000);
-    
+
     return () => clearInterval(refreshInterval);
   }, []);
 
+ 
+
+  // Real-time update untuk status "ongoing"
   useEffect(() => {
-    const timeInterval = setInterval(() => {
-      setCurrentDate(new Date());
-    }, 60000);
-    
-    return () => clearInterval(timeInterval);
-  }, []);
+    const ongoingCheckInterval = setInterval(() => {
+      if (bookings.length > 0) {
+        const now = new Date();
+        const updatedBookings = bookings.map(booking => {
+          const { status } = calculateScheduleStatus(
+            booking.bookingDate,
+            booking.startTime,
+            booking.durationHours,
+            now
+          );
+
+          if (booking.status !== status) {
+            return { ...booking, status };
+          }
+          return booking;
+        });
+
+        // Hanya update jika ada perubahan
+        const hasChanged = updatedBookings.some((booking, index) =>
+          booking.status !== bookings[index]?.status
+        );
+
+        if (hasChanged) {
+          setBookings(updatedBookings);
+        }
+      }
+    }, 30000);
+
+    return () => clearInterval(ongoingCheckInterval);
+  }, [bookings]);
 
   // ================= RENDER =================
   return (
@@ -500,15 +526,15 @@ const SchedulesPage = () => {
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-6">
-            <Link 
-              to="/" 
+            <Link
+              to="/"
               className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 font-medium transition-colors"
             >
               <FaArrowLeft className="h-4 w-4" />
               Kembali ke Beranda
             </Link>
           </div>
-          
+
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
             <div>
               <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
@@ -518,7 +544,7 @@ const SchedulesPage = () => {
                 Informasi jadwal laboratorium yang telah disetujui untuk umum
               </p>
             </div>
-            
+
             <div className="flex gap-2">
               <button
                 onClick={refreshData}
@@ -552,7 +578,7 @@ const SchedulesPage = () => {
               </button>
             </div>
           </div>
-          
+
           {/* Stats Cards - Hanya untuk approved */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-8">
             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
@@ -566,7 +592,7 @@ const SchedulesPage = () => {
                 </div>
               </div>
             </div>
-            
+
             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
               <div className="flex items-center justify-between">
                 <div>
@@ -578,7 +604,7 @@ const SchedulesPage = () => {
                 </div>
               </div>
             </div>
-            
+
             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
               <div className="flex items-center justify-between">
                 <div>
@@ -590,7 +616,7 @@ const SchedulesPage = () => {
                 </div>
               </div>
             </div>
-            
+
             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
               <div className="flex items-center justify-between">
                 <div>
@@ -602,7 +628,7 @@ const SchedulesPage = () => {
                 </div>
               </div>
             </div>
-            
+
             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
               <div className="flex items-center justify-between">
                 <div>
@@ -616,7 +642,7 @@ const SchedulesPage = () => {
             </div>
           </div>
         </div>
-        
+
         {/* Controls */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-8">
           <div className="flex flex-col md:flex-row gap-4">
@@ -643,7 +669,7 @@ const SchedulesPage = () => {
                 )}
               </div>
             </div>
-            
+
             {/* Filters & Sort */}
             <div className="flex gap-2">
               <div className="relative flex-1 min-w-[140px]">
@@ -662,7 +688,7 @@ const SchedulesPage = () => {
                   <FaFilter className="h-5 w-5 text-gray-400" />
                 </div>
               </div>
-              
+
               <div className="relative flex-1 min-w-[160px]">
                 <select
                   value={sortBy}
@@ -679,7 +705,7 @@ const SchedulesPage = () => {
                   <FaSort className="h-5 w-5 text-gray-400" />
                 </div>
               </div>
-              
+
               <button
                 onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
                 className="px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center justify-center min-w-[44px]"
@@ -689,7 +715,7 @@ const SchedulesPage = () => {
               </button>
             </div>
           </div>
-          
+
           {/* Active Filters Info */}
           <div className="mt-4 flex flex-wrap gap-2">
             {searchTerm && (
@@ -706,7 +732,7 @@ const SchedulesPage = () => {
             )}
           </div>
         </div>
-        
+
         {/* Loading State */}
         {loading && (
           <div className="text-center py-12">
@@ -715,7 +741,7 @@ const SchedulesPage = () => {
             <p className="text-sm text-gray-500 mt-2">Mohon tunggu sebentar</p>
           </div>
         )}
-        
+
         {/* Error State */}
         {error && !loading && (
           <div className="text-center py-12">
@@ -740,7 +766,7 @@ const SchedulesPage = () => {
             </div>
           </div>
         )}
-        
+
         {/* Empty State */}
         {!loading && !error && bookings.length === 0 && (
           <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
@@ -768,7 +794,7 @@ const SchedulesPage = () => {
             </div>
           </div>
         )}
-        
+
         {/* Schedules Grid - Hanya yang approved */}
         {!loading && !error && displayedBookings.length > 0 && (
           <>
@@ -794,7 +820,7 @@ const SchedulesPage = () => {
                       </button>
                     </div>
                   </div>
-                  
+
                   {/* Booking Content */}
                   <div className="p-4">
                     <div className="flex items-center gap-3 mb-4">
@@ -810,7 +836,7 @@ const SchedulesPage = () => {
                         </p>
                       </div>
                     </div>
-                    
+
                     <div className="space-y-3 mb-4">
                       <div className="flex items-center gap-2 text-gray-700">
                         <FaGraduationCap className="h-4 w-4 text-gray-400 flex-shrink-0" />
@@ -831,7 +857,7 @@ const SchedulesPage = () => {
                         </span>
                       </div>
                     </div>
-                    
+
                     <div className="pt-4 border-t border-gray-100">
                       <div className="flex justify-between items-center">
                         <div>
@@ -854,33 +880,17 @@ const SchedulesPage = () => {
                 </div>
               ))}
             </div>
-            
-            {/* Load More Button */}
-            {visibleCount < filteredBookings.length && (
-              <div className="text-center mt-8">
-                <button
-                  onClick={loadMore}
-                  className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-300 font-medium inline-flex items-center gap-2 shadow-md hover:shadow-lg"
-                >
-                  <FaChevronDown className="h-4 w-4" />
-                  Tampilkan Lebih Banyak ({filteredBookings.length - visibleCount} tersisa)
-                </button>
-                <p className="text-gray-600 mt-2">
-                  Menampilkan {visibleCount} dari {filteredBookings.length} jadwal
-                </p>
-              </div>
-            )}
           </>
         )}
-        
+
         {/* Summary Info */}
         {!loading && !error && bookings.length > 0 && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mt-8">
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
               <div className="text-center md:text-left">
                 <p className="text-gray-700 font-medium">
-                  📊 <span className="font-bold">{bookings.length}</span> jadwal disetujui • 
-                  <span className="font-bold ml-2">{stats.ongoing}</span> berlangsung • 
+                  📊 <span className="font-bold">{bookings.length}</span> jadwal disetujui •
+                  <span className="font-bold ml-2">{stats.ongoing}</span> berlangsung •
                   <span className="font-bold ml-2">{stats.upcoming}</span> mendatang
                 </p>
                 {lastUpdated && (
@@ -897,7 +907,7 @@ const SchedulesPage = () => {
           </div>
         )}
       </div>
-      
+
       {/* Schedule Detail Modal */}
       {selectedSchedule && showDetailModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 animate-fadeIn">
@@ -925,7 +935,7 @@ const SchedulesPage = () => {
                   ✕
                 </button>
               </div>
-              
+
               {/* Schedule Details Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div className="space-y-4">
@@ -938,7 +948,7 @@ const SchedulesPage = () => {
                       <p className="text-sm text-gray-600 mt-1">{selectedSchedule.user.email}</p>
                     )}
                   </div>
-                  
+
                   <div className="bg-gray-50 p-4 rounded-lg">
                     <h4 className="text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
                       <FaBuilding className="h-4 w-4" /> Laboratorium
@@ -946,7 +956,7 @@ const SchedulesPage = () => {
                     <p className="text-gray-900 font-medium">{selectedSchedule.labName}</p>
                     <p className="text-sm text-gray-600 mt-1">{selectedSchedule.labLocation}</p>
                   </div>
-                  
+
                   <div className="bg-gray-50 p-4 rounded-lg">
                     <h4 className="text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
                       <FaUsers className="h-4 w-4" /> Kelas/Kelompok
@@ -959,7 +969,7 @@ const SchedulesPage = () => {
                     )}
                   </div>
                 </div>
-                
+
                 <div className="space-y-4">
                   <div className="bg-blue-50 p-4 rounded-lg">
                     <h4 className="text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
@@ -975,7 +985,7 @@ const SchedulesPage = () => {
                       })}
                     </p>
                   </div>
-                  
+
                   <div className="bg-blue-50 p-4 rounded-lg">
                     <h4 className="text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
                       <FaClock className="h-4 w-4" /> Waktu
@@ -987,7 +997,7 @@ const SchedulesPage = () => {
                       Durasi: {selectedSchedule.durationHours} jam
                     </p>
                   </div>
-                  
+
                   <div className="bg-green-50 p-4 rounded-lg">
                     <h4 className="text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
                       <FaCheckCircle className="h-4 w-4 text-green-600" /> Status
@@ -1008,7 +1018,7 @@ const SchedulesPage = () => {
                   </div>
                 </div>
               </div>
-              
+
               {/* Description */}
               {selectedSchedule.description && (
                 <div className="mb-6">
@@ -1020,7 +1030,7 @@ const SchedulesPage = () => {
                   </div>
                 </div>
               )}
-              
+
               {/* Additional Info */}
               {(selectedSchedule.academicYear || selectedSchedule.semester) && (
                 <div className="mb-6">
@@ -1039,7 +1049,7 @@ const SchedulesPage = () => {
                   </div>
                 </div>
               )}
-              
+
               {/* Modal Footer */}
               <div className="pt-6 border-t border-gray-200 flex justify-end gap-3">
                 <button
