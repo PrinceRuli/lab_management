@@ -20,10 +20,10 @@ const getApprovedSchedules = async (req, res) => {
       bookingDate: { $gte: today }
     })
       .populate('lab', 'name location photo')
-      .populate('user', 'name email')
-      .populate('teacher', 'name email')
+      .populate('user', 'name email phone teacherId subject department avatar') // UPDATE INI
+      .populate('teacher', 'name email phone teacherId subject department') // UPDATE INI
       .populate('approvedBy', 'name')
-      .sort({ bookingDate: 1, startTime: 1 })
+      .sort({ bookingDate: 1, startTime: 1 });
 
     console.log(`Found ${schedules.length} approved schedules`);
 
@@ -38,12 +38,18 @@ const getApprovedSchedules = async (req, res) => {
         day: 'numeric'
       });
 
+      // Ambil data teacher dari teacher atau user
+      const teacherData = schedule.teacher || schedule.user;
+      const teacherName = teacherData?.name || schedule.teacherName || 'Pengajar';
+      const teacherSubject = teacherData?.subject || schedule.subject || 'Mata Pelajaran';
+
       return {
         id: schedule._id,
         _id: schedule._id,
-        teacherName: schedule.teacherName,
-        teacher: schedule.teacher?.name || schedule.teacherName,
-        subject: schedule.subject,
+        teacherName: teacherName,
+        teacher: teacherData,
+        teacherId: teacherData?.teacherId,
+        subject: teacherSubject,
         activityTitle: schedule.activityTitle,
         activity: schedule.activityTitle,
         description: schedule.description,
@@ -61,7 +67,8 @@ const getApprovedSchedules = async (req, res) => {
         approvedBy: schedule.approvedBy?.name,
         approvedAt: schedule.approvedAt,
         remarks: schedule.remarks,
-        createdAt: schedule.createdAt
+        createdAt: schedule.createdAt,
+        user: schedule.user // Kirim user data untuk reference
       };
     });
 
@@ -121,8 +128,8 @@ const getAllSchedules = async (req, res) => {
 
     const schedules = await Booking.find(filter)
       .populate('lab', 'name location')
-      .populate('user', 'name')
-      .populate('teacher', 'name')
+      .populate('user', 'name phone teacherId subject department') // UPDATE INI
+      .populate('teacher', 'name phone teacherId subject department') // UPDATE INI
       .populate('approvedBy', 'name')
       .sort({ bookingDate: 1, startTime: 1 })
       .skip(skip)
@@ -139,16 +146,23 @@ const getAllSchedules = async (req, res) => {
         day: 'numeric'
       });
 
+      const teacherData = schedule.teacher || schedule.user;
+      const teacherName = teacherData?.name || schedule.teacherName || 'Pengajar';
+      const teacherSubject = teacherData?.subject || schedule.subject || 'Mata Pelajaran';
+
       return {
         id: schedule._id,
         _id: schedule._id,
-        teacherName: schedule.teacherName,
-        subject: schedule.subject,
+        teacherName: teacherName,
+        teacher: teacherData,
+        teacherId: teacherData?.teacherId,
+        subject: teacherSubject,
         activityTitle: schedule.activityTitle,
         description: schedule.description,
         photo: schedule.photo || '/assets/images/lab_image.jpg',
         lab: schedule.lab?.name,
         labId: schedule.lab?._id,
+        labDetails: schedule.lab,
         day: schedule.day,
         date: formattedDate,
         rawDate: schedule.bookingDate,
@@ -199,22 +213,31 @@ const getTodaySchedules = async (req, res) => {
       }
     })
       .populate('lab', 'name location')
-      .populate('teacher', 'name')
+      .populate('teacher', 'name phone teacherId subject department') // UPDATE INI
       .sort({ startTime: 1 })
       .limit(10);
 
-    const formattedSchedules = schedules.map(schedule => ({
-      id: schedule._id,
-      teacherName: schedule.teacherName,
-      subject: schedule.subject,
-      activityTitle: schedule.activityTitle,
-      lab: schedule.lab?.name,
-      day: schedule.day,
-      startTime: schedule.startTime,
-      endTime: schedule.endTime,
-      time: `${schedule.startTime} - ${schedule.endTime}`,
-      classGroup: schedule.classGroup
-    }));
+    const formattedSchedules = schedules.map(schedule => {
+      const teacherData = schedule.teacher;
+      const teacherName = teacherData?.name || schedule.teacherName || 'Pengajar';
+      const teacherSubject = teacherData?.subject || schedule.subject || 'Mata Pelajaran';
+
+      return {
+        id: schedule._id,
+        teacherName: teacherName,
+        teacher: teacherData,
+        teacherId: teacherData?.teacherId,
+        subject: teacherSubject,
+        activityTitle: schedule.activityTitle,
+        lab: schedule.lab?.name,
+        labDetails: schedule.lab,
+        day: schedule.day,
+        startTime: schedule.startTime,
+        endTime: schedule.endTime,
+        time: `${schedule.startTime} - ${schedule.endTime}`,
+        classGroup: schedule.classGroup
+      };
+    });
 
     res.status(200).json({
       success: true,
@@ -241,7 +264,6 @@ const createBooking = async (req, res) => {
     console.log('Request Body:', JSON.stringify(req.body, null, 2));
     console.log('User:', req.user?.id);
     console.log('Lab dari request:', req.body.lab || req.body.labId);
-
 
     // 🔥 NORMALISASI lab
     const labId = req.body.lab || req.body.labId;
@@ -345,7 +367,6 @@ const createBooking = async (req, res) => {
   }
 };
 
-
 // @desc    Get all bookings
 // @route   GET /api/bookings
 // @access  Private
@@ -373,8 +394,8 @@ const getBookings = async (req, res) => {
 
     const bookings = await Booking.find(query)
       .populate('lab', 'name location')
-      .populate('user', 'name email')
-      .populate('teacher', 'name email')
+      .populate('user', 'name email phone teacherId subject department avatar') // UPDATE INI
+      .populate('teacher', 'name email phone teacherId subject department') // UPDATE INI
       .sort('-createdAt');
 
     res.json(bookings);
@@ -390,8 +411,8 @@ const getBookingById = async (req, res) => {
   try {
     const booking = await Booking.findById(req.params.id)
       .populate('lab', 'name location capacity')
-      .populate('user', 'name email')
-      .populate('teacher', 'name email');
+      .populate('user', 'name email phone teacherId subject department avatar') // UPDATE INI
+      .populate('teacher', 'name email phone teacherId subject department') // UPDATE INI
 
     if (!booking) {
       return res.status(404).json({ message: 'Booking not found' });
@@ -419,7 +440,7 @@ const updateBookingStatus = async (req, res) => {
     
     let booking = await Booking.findById(req.params.id)
       .populate('lab', 'name location')
-      .populate('user', 'name email');
+      .populate('user', 'name email phone teacherId subject department avatar'); // UPDATE INI
 
     if (!booking) {
       return res.status(404).json({ 
@@ -464,7 +485,7 @@ const updateBookingStatus = async (req, res) => {
       { new: true, runValidators: true }
     )
       .populate('lab', 'name location')
-      .populate('user', 'name email');
+      .populate('user', 'name email phone teacherId subject department avatar'); // UPDATE INI
 
     // ✅ AUTO-CREATE NOTIFICATION untuk guru yang buat booking
     if (status && status !== booking.status) {
@@ -514,8 +535,7 @@ const updateBookingStatus = async (req, res) => {
 
     // Juga buat notifikasi untuk admin jika teacher update booking mereka sendiri
     if (req.user.role === 'teacher' && status === 'pending') {
-      // Find admin users to notify (assuming admin role exists)
-      // You might need to adjust this based on your user model
+      // Find admin users to notify
       const adminUsers = await User.find({ role: 'admin' }).select('_id');
       
       for (const admin of adminUsers) {
@@ -552,7 +572,7 @@ const getUserBookings = async (req, res) => {
   try {
     const bookings = await Booking.find({ user: req.user.id })
       .populate('lab', 'name location')
-      .populate('teacher', 'name email')
+      .populate('teacher', 'name email phone teacherId subject department') // UPDATE INI
       .sort('-createdAt');
 
     res.json(bookings);
@@ -583,7 +603,6 @@ const deleteBooking = async (req, res) => {
   }
 };
 
-// Hapus semua karakter yang tidak perlu di akhir file
 module.exports = {
   getApprovedSchedules,
   getAllSchedules,

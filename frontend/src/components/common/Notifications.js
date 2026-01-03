@@ -1,4 +1,3 @@
-// components/common/Notifications.jsx
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { FaBell, FaCheck, FaExclamationCircle, FaCalendarCheck, FaTrash } from 'react-icons/fa';
 import { toast } from 'react-hot-toast';

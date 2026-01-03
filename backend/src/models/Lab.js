@@ -57,7 +57,15 @@ const labSchema = new mongoose.Schema({
   updatedAt: {
     type: Date,
     default: Date.now,
-  }, 
+  },
+  maintenanceSchedule: Date,
+    status: {
+      type: String,
+      enum: ['active', 'maintenance', 'closed'],
+      default: 'active',
+    },
+    lastMaintenance: Date,
+    nextMaintenance: Date
 });
 
 // Middleware untuk update timestamp

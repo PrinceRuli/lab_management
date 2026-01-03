@@ -1,4 +1,3 @@
-// utils/notificationHelper.js
 const Notification = require('../models/Notification');
 
 class NotificationHelper {

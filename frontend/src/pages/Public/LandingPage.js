@@ -91,105 +91,85 @@ const LandingPage = () => {
   ];
 
   // ================= FETCH APPROVED SCHEDULES =================
+  // ================= FETCH APPROVED SCHEDULES =================
   const fetchApprovedSchedules = async () => {
     try {
       setLoading(true);
       setError(null);
-      console.log('🔄 Memuat jadwal yang disetujui...');
 
-      // OPTION 1: Jika ada endpoint khusus untuk approved schedules
+      // Endpoint sudah benar
       const response = await bookingAPI.getApprovedSchedules();
 
-      // OPTION 2: Jika tidak ada, filter dari semua data
-      // const response = await bookingAPI.getAll();
-      // const allBookings = response.data?.data || response.data || [];
-      // const approvedBookings = allBookings.filter(booking => booking.status === 'approved');
+      console.log('🔍 Full API Response:', response.data);
 
-      console.log('📊 Response API approved schedules:', response.data);
+      // Backend mengembalikan: { success: true, data: [...] }
+      let schedulesData = response.data.data || [];
 
-      let schedulesData = [];
+      console.log('📊 Schedules data:', schedulesData);
+      console.log('🏢 First schedule lab:', schedulesData[0]?.lab);
 
-      // Handle berbagai format response
-      if (Array.isArray(response.data)) {
-        schedulesData = response.data;
-      } else if (response.data?.data && Array.isArray(response.data.data)) {
-        schedulesData = response.data.data;
-      } else if (response.data?.schedules && Array.isArray(response.data.schedules)) {
-        schedulesData = response.data.schedules;
-      } else if (response.data?.bookings && Array.isArray(response.data.bookings)) {
-        schedulesData = response.data.bookings;
-      } else {
-        console.warn('⚠️ Format data tidak dikenali:', response.data);
-        schedulesData = [];
-      }
+      // PROSES DATA DENGAN BENAR
+      const processedSchedules = schedulesData.map((schedule) => {
+        // DEBUG: Lihat struktur schedule
+        console.log('📝 Processing schedule:', {
+          id: schedule._id,
+          labField: schedule.lab,
+          labName: schedule.lab, // Ini sudah string "Lab Komputer 2"
+          labDetails: schedule.labDetails,
+          activityTitle: schedule.activityTitle
+        });
 
-      // Filter hanya yang status approved (jika endpoint belum filter)
-      const approvedSchedules = schedulesData.filter(schedule =>
-        schedule.status === 'approved' || schedule.bookingStatus === 'approved'
-      );
+        // Nama lab sudah ada di schedule.lab (string)
+        // Dari backend: lab: schedule.lab?.name || 'Laboratory'
+        const labName = schedule.lab || 'Laboratorium';
 
-      // Ambil maksimal 6 schedule untuk ditampilkan
-      const limitedSchedules = approvedSchedules.slice(0, 6);
+        // Format tanggal
+        const bookingDate = schedule.rawDate ? new Date(schedule.rawDate) : null;
 
-      // Process schedules untuk ditampilkan
-      const processedSchedules = processSchedules(limitedSchedules);
+        // Format waktu
+        const startTime = schedule.startTime || '';
+        const displayTime = formatDisplayTime(startTime);
 
+        // Durasi
+        const durationHours = schedule.durationHours || 2;
+        const endTime = schedule.endTime || calculateEndTime(startTime, durationHours);
+
+        return {
+          _id: schedule._id,
+          teacherName: schedule.teacherName || schedule.teacher || 'Pengajar',
+          subject: schedule.subject || 'Mata Pelajaran',
+          activityTitle: schedule.activityTitle || 'Kegiatan Laboratorium',
+          lab: labName, // <-- INI SUDAH NAMA LAB YANG BENAR
+          labLocation: schedule.labDetails?.location || '',
+          classGroup: schedule.classGroup || 'Kelas',
+          bookingDate,
+          startTime,
+          displayTime,
+          endTime,
+          durationHours,
+          status: 'approved'
+        };
+      });
+
+      console.log('✅ Processed schedules:', processedSchedules);
       setSchedules(processedSchedules);
-      console.log(`✅ Berhasil memuat ${processedSchedules.length} jadwal yang disetujui`);
 
     } catch (err) {
       console.error('❌ Error fetching approved schedules:', err);
-      const errorMsg = err.response?.data?.message || 'Tidak dapat terhubung ke server. Silakan periksa koneksi Anda.';
+      const errorMsg = err.response?.data?.message || 'Gagal memuat jadwal';
       setError(errorMsg);
-      toast.error('Gagal memuat jadwal');
+      toast.error(errorMsg);
     } finally {
       setLoading(false);
     }
   };
 
-  // Process schedule data untuk display
-  const processSchedules = (schedulesData) => {
-    return schedulesData.map((schedule, index) => {
-      // Normalize lab data
-      const labData = schedule.lab || {};
-      const labName = labData.name || schedule.labName || 'Laboratorium';
+  // Process schedule data untuk display - DIUBAH
 
-      // Normalize date
-      const rawDate = schedule.bookingDate || schedule.date;
-      const bookingDate = rawDate ? new Date(rawDate) : null;
-
-      // Normalize time
-      const startTime = schedule.startTime || '';
-      const displayTime = formatDisplayTime(startTime);
-
-      // Get duration
-      const durationHours = schedule.durationHours || 2;
-      const endTime = calculateEndTime(startTime, durationHours);
-
-      return {
-        _id: schedule._id || `temp-${Date.now()}-${index}`,
-        teacherName: schedule.teacherName || schedule.user?.name || 'Pengajar',
-        subject: schedule.subject || 'Mata Pelajaran',
-        activityTitle: schedule.activityTitle || schedule.purpose || 'Kegiatan Laboratorium',
-        description: schedule.description || schedule.remarks || 'Sesi laboratorium',
-        lab: labName,
-        labLocation: labData.location || '',
-        classGroup: schedule.classGroup || 'Kelas',
-        bookingDate,
-        startTime,
-        displayTime,
-        endTime,
-        durationHours,
-        status: 'approved',
-        originalData: schedule
-      };
-    });
-  };
 
   // Format waktu untuk display
   const formatDisplayTime = (time) => {
     if (!time) return 'Waktu tidak tersedia';
-
     try {
       const [hours, minutes] = time.split(':').map(Number);
       return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
@@ -201,13 +181,11 @@ const LandingPage = () => {
   // Calculate end time
   const calculateEndTime = (startTime, durationHours) => {
     if (!startTime || !durationHours) return '';
-
     try {
       const [hours, minutes] = startTime.split(':').map(Number);
       const totalMinutes = hours * 60 + minutes + (durationHours * 60);
       const endHours = Math.floor(totalMinutes / 60) % 24;
       const endMinutes = totalMinutes % 60;
-
       return `${endHours.toString().padStart(2, '0')}:${endMinutes.toString().padStart(2, '0')}`;
     } catch {
       return '';
@@ -217,7 +195,6 @@ const LandingPage = () => {
   // Get icon berdasarkan mata pelajaran
   const getSubjectIcon = (subject) => {
     if (!subject) return <FaBook className="h-4 w-4 text-gray-500" />;
-
     const lowerSubject = subject.toLowerCase();
     if (lowerSubject.includes('kimia') || lowerSubject.includes('biologi')) {
       return <FaFlask className="h-4 w-4 text-blue-500" />;
@@ -269,15 +246,12 @@ const LandingPage = () => {
     if (!date || isNaN(date.getTime())) {
       return 'Tanggal tidak tersedia';
     }
-
     const today = new Date();
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
-
     const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
     const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     const tomorrowOnly = new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate());
-
     if (dateOnly.getTime() === todayOnly.getTime()) {
       return 'Hari Ini';
     } else if (dateOnly.getTime() === tomorrowOnly.getTime()) {
@@ -295,33 +269,30 @@ const LandingPage = () => {
   // Auto slide untuk schedule
   useEffect(() => {
     if (schedules.length === 0) return;
-
     const interval = setInterval(() => {
       const totalSlides = Math.ceil(schedules.length / 3);
       setCurrentSlide((prev) =>
         prev === totalSlides - 1 ? 0 : prev + 1
       );
     }, 8000);
-
     return () => clearInterval(interval);
   }, [schedules]);
 
   // Auto slide untuk testimoni
   useEffect(() => {
     if (!isAutoPlaying || testimonials.length === 0) return;
-
     const interval = setInterval(() => {
       setCurrentTestimonial((prev) =>
         prev === testimonials.length - 1 ? 0 : prev + 1
       );
     }, 5000);
-
     return () => clearInterval(interval);
   }, [isAutoPlaying, testimonials.length]);
 
-  // Fetch data saat komponen dimuat
+  // Fetch data saat komponen dimuat - DIUBAH dengan proper cleanup
   useEffect(() => {
     fetchApprovedSchedules();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const nextTestimonial = () => {
@@ -339,7 +310,7 @@ const LandingPage = () => {
   // Loading skeleton
   const ScheduleSkeleton = () => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-      {[1, 2, 3, 4, 5, 6].map((n) => (
+      {[1, 2, 3].map((n) => (
         <div key={n} className="bg-white rounded-2xl shadow-lg p-6 animate-pulse border border-gray-200">
           <div className="flex items-start justify-between mb-4">
             <div className="space-y-2">
@@ -356,10 +327,6 @@ const LandingPage = () => {
                 <div className="h-3 bg-gray-200 rounded w-24"></div>
                 <div className="h-2 bg-gray-200 rounded w-16"></div>
               </div>
-            </div>
-            <div className="ml-auto space-y-1 text-right">
-              <div className="h-3 bg-gray-200 rounded w-20"></div>
-              <div className="h-2 bg-gray-200 rounded w-16"></div>
             </div>
           </div>
         </div>
@@ -379,25 +346,15 @@ const LandingPage = () => {
         </h3>
         <p className="text-gray-600 max-w-md mx-auto mb-8 text-lg">
           Saat ini belum ada jadwal laboratorium yang telah disetujui.
-          Jadwal akan muncul di sini setelah booking disetujui oleh administrator.
         </p>
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <Link
-            to="/login"
-            className="inline-flex items-center justify-center px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-full hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 font-medium shadow-lg hover:shadow-xl"
-          >
-            <FaCalendarAlt className="mr-3" />
-            Login untuk Booking
-          </Link>
-          <button
-            onClick={fetchApprovedSchedules}
-            disabled={loading}
-            className="inline-flex items-center justify-center px-8 py-3 border-2 border-gray-300 text-gray-700 rounded-full hover:bg-gray-50 hover:border-gray-400 transition-all duration-300 font-medium disabled:opacity-50"
-          >
-            <FaSync className={`mr-3 ${loading ? 'animate-spin' : ''}`} />
-            Muat Ulang Data
-          </button>
-        </div>
+        <button
+          onClick={fetchApprovedSchedules}
+          disabled={loading}
+          className="inline-flex items-center justify-center px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-full hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 font-medium shadow-lg hover:shadow-xl disabled:opacity-50"
+        >
+          <FaSync className={`mr-3 ${loading ? 'animate-spin' : ''}`} />
+          Coba Lagi
+        </button>
       </div>
     </div>
   );
@@ -418,7 +375,7 @@ const LandingPage = () => {
         <button
           onClick={onRetry}
           disabled={loading}
-          className="inline-flex items-center justify-center px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-full hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 font-medium shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+          className="inline-flex items-center justify-center px-8 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-full hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 font-medium shadow-lg hover:shadow-xl disabled:opacity-50"
         >
           <FaSpinner className={`mr-3 ${loading ? 'animate-spin' : ''}`} />
           Coba Lagi
@@ -482,19 +439,15 @@ const LandingPage = () => {
           <div className="text-center max-w-3xl mx-auto mb-16">
             <div className="inline-flex items-center gap-2 mb-6 px-6 py-3 bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-700 rounded-full text-sm font-semibold">
               <FaCalendarAlt className="h-5 w-5" />
-              Jadwal Laboratorium yang Disetujui
+              Jadwal Laboratorium
             </div>
 
             <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
-              Sesi Laboratorium Mendatang
+              Sesi Laboratorium
             </h2>
 
             <p className="text-xl text-gray-600">
-              {loading ? 'Memuat jadwal...' :
-                error ? 'Error memuat data' :
-                  schedules.length > 0 ?
-                    `Menampilkan ${schedules.length} jadwal yang disetujui dan siap dilaksanakan` :
-                    'Belum ada jadwal yang disetujui tersedia'}
+              Daftar jadwal sesi laboratorium yang akan menemani kamu.
             </p>
           </div>
 
@@ -522,16 +475,13 @@ const LandingPage = () => {
           {/* Success State - Grid Jadwal */}
           {!loading && !error && schedules.length > 0 && (
             <>
-              {/* Grid Jadwal dengan Auto Slide */}
               <div className="relative mb-12">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                   {getVisibleSchedules().map((schedule, index) => (
                     <div
                       key={schedule._id || index}
-                      className="group bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-500 overflow-hidden border border-gray-200 hover:border-blue-300 animate-fadeIn"
+                      className="group bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-500 overflow-hidden border border-gray-200 hover:border-blue-300"
                     >
-
-                      {/* Header Jadwal */}
                       <div className="p-6 pb-4">
                         <div className="mb-4">
                           <div className="inline-flex items-center gap-2 mb-2 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-semibold">
@@ -543,26 +493,25 @@ const LandingPage = () => {
                           </h3>
                         </div>
 
-                        {/* Informasi Waktu */}
                         <div className="mb-4">
                           <div className="flex items-center gap-2 text-gray-700 mb-2">
-                            <FaCalendarAlt className="h-4 w-4 text-blue-500 flex-shrink-0" />
+                            <FaCalendarAlt className="h-4 w-4 text-blue-500" />
                             <span className="font-medium text-gray-900">
                               {formatDisplayDate(schedule.bookingDate)}
                             </span>
                           </div>
                           <div className="flex items-center gap-2 text-gray-700">
-                            <FaClock className="h-4 w-4 text-blue-500 flex-shrink-0" />
+                            <FaClock className="h-4 w-4 text-blue-500" />
                             <span className="font-medium">
                               {schedule.displayTime} - {schedule.endTime}
                             </span>
-                            <span className="text-sm text-gray-500 ml-2">
+                            <span className="text-sm text-gray-500">
                               ({schedule.durationHours} jam)
                             </span>
                           </div>
                         </div>
 
-                        {/* Info Kelas dan Lab */}
+                        {/* INFO LAB - INI YANG DIPERBAIKI */}
                         <div className="flex items-center gap-4 mb-4">
                           <div className="flex items-center gap-2">
                             <FaUsers className="h-4 w-4 text-gray-400" />
@@ -573,20 +522,19 @@ const LandingPage = () => {
                           <div className="flex items-center gap-2">
                             <FaBuilding className="h-4 w-4 text-gray-400" />
                             <span className="text-sm font-medium text-gray-700 truncate">
-                              {schedule.lab}
+                              {schedule.lab} {/* NAMA LAB DARI DATABASE */}
                             </span>
                           </div>
                         </div>
                       </div>
 
-                      {/* Footer dengan Info Guru */}
                       <div className="px-6 py-4 bg-gradient-to-r from-gray-50 to-white border-t border-gray-100">
                         <div className="flex items-center gap-3">
                           <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${getAvatarColor(schedule.teacherName)}`}>
                             {getInitials(schedule.teacherName)}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="font-medium text-gray-900 truncate" title={schedule.teacherName}>
+                            <p className="font-medium text-gray-900 truncate">
                               {schedule.teacherName}
                             </p>
                             <p className="text-sm text-gray-500">Pengajar</p>
@@ -597,7 +545,6 @@ const LandingPage = () => {
                   ))}
                 </div>
 
-                {/* Navigation Dots untuk schedule grid */}
                 {schedules.length > 3 && (
                   <div className="flex justify-center mt-8 gap-2">
                     {[...Array(Math.ceil(schedules.length / 3))].map((_, index) => (
@@ -608,24 +555,20 @@ const LandingPage = () => {
                           ? 'bg-blue-600'
                           : 'bg-gray-300 hover:bg-gray-400'
                           }`}
-                        aria-label={`Slide ${index + 1}`}
                       />
                     ))}
                   </div>
                 )}
               </div>
 
-              {/* Tombol Lihat Semua JADWAL - MENGARAH KE SCHEDULES PAGE */}
               <div className="text-center">
                 <Link
                   to="/schedules"
                   className="inline-flex items-center justify-center px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-full hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 font-medium shadow-lg hover:shadow-xl"
                 >
-                 
                   Lihat Semua Jadwal
                   <FaArrowRight className="ml-3" />
                 </Link>
-                
               </div>
             </>
           )}
@@ -656,7 +599,6 @@ const LandingPage = () => {
                 key={article.id}
                 className="group bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-500 border border-gray-200 hover:border-purple-300"
               >
-                {/* Thumbnail Artikel */}
                 <div className="h-56 bg-gradient-to-br from-purple-50 to-pink-50 overflow-hidden relative">
                   <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-pink-500/10 group-hover:scale-110 transition-transform duration-700"></div>
                   <div className="absolute inset-0 flex items-center justify-center">
@@ -669,7 +611,6 @@ const LandingPage = () => {
                   </div>
                 </div>
 
-                {/* Konten Artikel */}
                 <div className="p-6">
                   <div className="flex items-center justify-between mb-4">
                     <span className="text-sm text-gray-500">{article.date}</span>
@@ -729,11 +670,9 @@ const LandingPage = () => {
           </div>
 
           <div className="relative max-w-6xl mx-auto">
-            {/* Konten Testimoni */}
             <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-white to-gray-50 shadow-2xl border border-gray-200">
               <div className="p-8 md:p-12">
                 <div className="flex flex-col lg:flex-row items-center gap-8">
-                  {/* Avatar & Info Pengguna */}
                   <div className="lg:w-1/3 text-center lg:text-left">
                     <div className="w-32 h-32 mx-auto lg:mx-0 rounded-full bg-gradient-to-br from-yellow-100 to-orange-100 flex items-center justify-center text-4xl font-bold text-yellow-700 mb-6">
                       {testimonials[currentTestimonial].avatar}
@@ -751,7 +690,6 @@ const LandingPage = () => {
                     </p>
                   </div>
 
-                  {/* Teks Testimoni */}
                   <div className="lg:w-2/3">
                     <div className="relative">
                       <FaQuoteLeft className="absolute -top-4 -left-4 h-12 w-12 text-yellow-100 opacity-50" />
@@ -764,7 +702,6 @@ const LandingPage = () => {
               </div>
             </div>
 
-            {/* Tombol Navigasi */}
             <button
               onClick={() => {
                 setIsAutoPlaying(false);
@@ -784,7 +721,6 @@ const LandingPage = () => {
               ›
             </button>
 
-            {/* Indikator Dots */}
             <div className="flex justify-center mt-12 gap-3">
               {testimonials.map((_, i) => (
                 <button
@@ -799,23 +735,6 @@ const LandingPage = () => {
                     }`}
                 />
               ))}
-            </div>
-
-            {/* Toggle Auto-play */}
-            <div className="text-center mt-8">
-              <button
-                onClick={() => setIsAutoPlaying(!isAutoPlaying)}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-gray-100 to-white text-gray-700 rounded-full hover:from-gray-200 hover:to-white transition-all duration-300 font-medium border border-gray-300"
-              >
-                {isAutoPlaying ? (
-                  <>
-                    <FaSpinner className="animate-spin" />
-                    Otomatis berputar
-                  </>
-                ) : (
-                  'Klik untuk melanjutkan'
-                )}
-              </button>
             </div>
           </div>
         </div>
@@ -840,7 +759,6 @@ const LandingPage = () => {
           </div>
 
           <div className="grid lg:grid-cols-2 gap-12">
-            {/* Ilustrasi Kontak */}
             <div className="flex flex-col justify-center items-center lg:items-start text-center lg:text-left">
               <div className="relative w-full max-w-lg">
                 <div className="absolute -inset-4 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-3xl blur-xl opacity-20"></div>
@@ -871,7 +789,6 @@ const LandingPage = () => {
               </div>
             </div>
 
-            {/* Form Kontak */}
             <div className="bg-white rounded-3xl shadow-2xl p-8 md:p-12 border border-gray-200">
               <h3 className="text-2xl font-bold text-gray-900 mb-8">
                 Kirim Pesan kepada Kami

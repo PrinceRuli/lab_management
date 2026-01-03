@@ -32,7 +32,7 @@ const SchedulesPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState('all');
   const [sortBy, setSortBy] = useState('date');
-  const [sortOrder, setSortOrder] = useState('desc');
+  const [sortOrder, setSortOrder] = useState('asc');
   const [selectedSchedule, setSelectedSchedule] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
@@ -63,7 +63,7 @@ const SchedulesPage = () => {
 
       const timestamp = Date.now();
       console.log('Timestamp:', timestamp);
-      
+
       const response = await bookingAPI.getApprovedSchedules();
 
       console.log('📊 Response API bookings:', response.data);
@@ -96,17 +96,6 @@ const SchedulesPage = () => {
       setBookings(processedBookings);
       setLastUpdated(new Date());
 
-      if (approvedBookings.length > 0) {
-        toast.success(`Menampilkan ${approvedBookings.length} jadwal yang disetujui`, {
-          duration: 2000,
-          position: 'top-right',
-        });
-      } else {
-        toast.info('Belum ada jadwal yang disetujui', {
-          duration: 3000
-        });
-      }
-
     } catch (err) {
       console.error('❌ Error fetching approved schedules:', err);
       const errorMsg = err.response?.data?.message || 'Gagal memuat jadwal. Silakan coba lagi.';
@@ -118,30 +107,90 @@ const SchedulesPage = () => {
   };
 
   // Process hanya booking yang approved
+  // Process hanya booking yang approved - VERSI DIPERBAIKI
   const processBookings = (bookingsData) => {
     const now = new Date();
 
     return bookingsData.map((booking, index) => {
       try {
-        // Normalize lab data
-        const labData = booking.lab || {};
-        const labName = labData.name || booking.labName || 'Laboratorium';
-        const labLocation = labData.location || 'Lokasi tidak tersedia';
+        console.log('🔍 Processing booking:', {
+          bookingId: booking._id,
+          labData: booking.lab,
+          labDetails: booking.labDetails,
+          teacherName: booking.teacherName
+        });
 
-        // Normalize date and time
-        const rawDate = booking.bookingDate || booking.tanggal;
-        const bookingDate = rawDate ? new Date(rawDate) : null;
+        // ================= PERBAIKAN 1: LAB DATA DARI BACKEND =================
+        // Backend sudah mengembalikan:
+        // - booking.lab = string nama lab (contoh: "Lab Fisika 1")
+        // - booking.labDetails = object dengan { name, location, photo }
 
+        let labName = 'Laboratorium';
+        let labLocation = 'Lokasi tidak tersedia';
+        let labPhoto = null;
+
+        // Jika ada labDetails dari backend (object lengkap)
+        if (booking.labDetails && typeof booking.labDetails === 'object') {
+          labName = booking.labDetails.name || booking.lab || 'Laboratorium';
+          labLocation = booking.labDetails.location || 'Lokasi tidak tersedia';
+          labPhoto = booking.labDetails.photo;
+        }
+        // Jika hanya ada lab sebagai string (nama lab)
+        else if (booking.lab && typeof booking.lab === 'string') {
+          labName = booking.lab;
+          // Coba ambil location dari labLocation jika ada
+          labLocation = booking.labLocation || 'Lokasi tidak tersedia';
+        }
+        // Jika lab adalah object langsung (sudah populated)
+        else if (booking.lab && typeof booking.lab === 'object') {
+          labName = booking.lab.name || 'Laboratorium';
+          labLocation = booking.lab.location || 'Lokasi tidak tersedia';
+          labPhoto = booking.lab.photo;
+        }
+
+        // Debug untuk memastikan
+        console.log('🏢 Lab info processed:', { labName, labLocation, labPhoto });
+
+        // ================= PERBAIKAN 2: DATE HANDLING =================
+        const rawDate = booking.bookingDate || booking.tanggal || booking.date || booking.rawDate;
+        let bookingDate = null;
+
+        if (rawDate) {
+          try {
+            if (rawDate instanceof Date) {
+              bookingDate = rawDate;
+            } else if (typeof rawDate === 'string') {
+              const dateStr = rawDate.endsWith('Z') ? rawDate.slice(0, -1) : rawDate;
+              bookingDate = new Date(dateStr);
+
+              if (isNaN(bookingDate.getTime())) {
+                bookingDate = new Date(rawDate);
+              }
+            }
+          } catch (dateError) {
+            console.warn('⚠️ Error parsing date:', rawDate, dateError);
+            bookingDate = null;
+          }
+        }
+
+        // Calculate schedule status
         const startTime = booking.startTime || '';
         const durationHours = booking.durationHours || 2;
-
-        // Calculate schedule status (hanya untuk approved)
         const { combinedDateTime, status } = calculateScheduleStatus(bookingDate, startTime, durationHours, now);
 
         // Format display
-        const displayDate = formatDisplayDate(bookingDate);
+        let displayDate;
+        if (bookingDate && !isNaN(bookingDate.getTime())) {
+          displayDate = formatDisplayDate(bookingDate);
+        } else if (rawDate) {
+          displayDate = rawDate.length > 20 ? rawDate.substring(0, 20) + '...' : rawDate;
+        } else {
+          displayDate = 'Tanggal akan diumumkan';
+        }
+
+        // Format time
         const displayTime = formatDisplayTime(startTime);
-        const endTime = calculateEndTime(startTime, durationHours);
+        const endTime = booking.endTime || calculateEndTime(startTime, durationHours);
 
         return {
           // ID & metadata
@@ -151,10 +200,12 @@ const SchedulesPage = () => {
           // Original booking data
           ...booking,
 
-          // Lab data
-          lab: labData,
+          // Lab data - SUDAH DIPERBAIKI
+          lab: { name: labName, location: labLocation, photo: labPhoto },
           labName,
-          labLocation,
+          labLocation, // <-- INI YANG AKAN DITAMPILKAN DI UI
+          labPhoto,
+          labFacilities: booking.labDetails?.facilities || [],
 
           // Schedule data
           bookingDate,
@@ -167,9 +218,9 @@ const SchedulesPage = () => {
           endTime,
 
           // Normalized fields
-          teacherName: booking.teacherName || booking.user?.name || 'Pengajar',
+          teacherName: booking.teacherName || booking.teacher || booking.user?.name || 'Pengajar',
           subject: booking.subject || 'Mata Pelajaran',
-          activityTitle: booking.activityTitle || booking.purpose || 'Kegiatan Laboratorium',
+          activityTitle: booking.activityTitle || booking.activity || booking.purpose || 'Kegiatan Laboratorium',
           description: booking.description || booking.remarks || '',
           classGroup: booking.classGroup || 'Kelas',
           gradeLevel: booking.gradeLevel || '',
@@ -187,7 +238,18 @@ const SchedulesPage = () => {
         };
       } catch (error) {
         console.error('Error processing booking:', error, booking);
-        return null;
+
+        return {
+          _id: `error-${Date.now()}-${index}`,
+          labName: 'Laboratorium',
+          labLocation: 'Lokasi tidak tersedia', // Fallback
+          displayDate: 'Tanggal tidak tersedia',
+          teacherName: 'Pengajar',
+          subject: 'Mata Pelajaran',
+          activityTitle: 'Kegiatan Laboratorium',
+          status: 'upcoming',
+          bookingStatus: 'approved'
+        };
       }
     }).filter(booking => booking !== null);
   };
@@ -456,10 +518,7 @@ const SchedulesPage = () => {
     window.print();
   };
 
-  const refreshData = () => {
-    fetchApprovedSchedules();
-  };
-
+  
   const openScheduleDetail = (booking) => {
     setSelectedSchedule(booking);
     setShowDetailModal(true);
@@ -473,51 +532,9 @@ const SchedulesPage = () => {
   // ================= USE EFFECTS =================
   useEffect(() => {
     fetchApprovedSchedules();
-
-    // Auto-refresh every 5 minutes untuk real-time
-    const refreshInterval = setInterval(() => {
-      if (!loading) {
-        fetchApprovedSchedules();
-      }
-    }, 5 * 60 * 1000);
-
-    return () => clearInterval(refreshInterval);
+    // eslint-disable-next-line
   }, []);
 
- 
-
-  // Real-time update untuk status "ongoing"
-  useEffect(() => {
-    const ongoingCheckInterval = setInterval(() => {
-      if (bookings.length > 0) {
-        const now = new Date();
-        const updatedBookings = bookings.map(booking => {
-          const { status } = calculateScheduleStatus(
-            booking.bookingDate,
-            booking.startTime,
-            booking.durationHours,
-            now
-          );
-
-          if (booking.status !== status) {
-            return { ...booking, status };
-          }
-          return booking;
-        });
-
-        // Hanya update jika ada perubahan
-        const hasChanged = updatedBookings.some((booking, index) =>
-          booking.status !== bookings[index]?.status
-        );
-
-        if (hasChanged) {
-          setBookings(updatedBookings);
-        }
-      }
-    }, 30000);
-
-    return () => clearInterval(ongoingCheckInterval);
-  }, [bookings]);
 
   // ================= RENDER =================
   return (
@@ -541,13 +558,13 @@ const SchedulesPage = () => {
                 Jadwal Laboratorium
               </h1>
               <p className="text-gray-600">
-                Informasi jadwal laboratorium yang telah disetujui untuk umum
+                Informasi jadwal laboratorium yang akan menemani kamu
               </p>
             </div>
 
             <div className="flex gap-2">
               <button
-                onClick={refreshData}
+                onClick={fetchApprovedSchedules}
                 disabled={loading}
                 className="px-4 py-2 border border-gray-300 rounded-lg flex items-center gap-2 hover:bg-gray-50 disabled:opacity-50"
                 title="Refresh data"
@@ -779,7 +796,7 @@ const SchedulesPage = () => {
             </p>
             <div className="space-x-3">
               <button
-                onClick={refreshData}
+                onClick={fetchApprovedSchedules}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
               >
                 <FaSync className="inline mr-2" />
@@ -888,11 +905,7 @@ const SchedulesPage = () => {
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mt-8">
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
               <div className="text-center md:text-left">
-                <p className="text-gray-700 font-medium">
-                  📊 <span className="font-bold">{bookings.length}</span> jadwal disetujui •
-                  <span className="font-bold ml-2">{stats.ongoing}</span> berlangsung •
-                  <span className="font-bold ml-2">{stats.upcoming}</span> mendatang
-                </p>
+                
                 {lastUpdated && (
                   <p className="text-sm text-gray-500 mt-1">
                     Data diperbarui: {lastUpdated.toLocaleTimeString('id-ID')}
@@ -901,7 +914,7 @@ const SchedulesPage = () => {
               </div>
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <FaCheckCircle className="h-4 w-4 text-green-600" />
-                <span>Semua jadwal telah disetujui oleh admin</span>
+                <span>Jadwal yang ready</span>
               </div>
             </div>
           </div>
@@ -944,9 +957,9 @@ const SchedulesPage = () => {
                       <FaGraduationCap className="h-4 w-4" /> Pengajar
                     </h4>
                     <p className="text-gray-900 font-medium">{selectedSchedule.teacherName}</p>
-                    {selectedSchedule.user?.email && (
+                    {/* {selectedSchedule.user?.email && (
                       <p className="text-sm text-gray-600 mt-1">{selectedSchedule.user.email}</p>
-                    )}
+                    )} */}
                   </div>
 
                   <div className="bg-gray-50 p-4 rounded-lg">
@@ -976,14 +989,6 @@ const SchedulesPage = () => {
                       <FaCalendarAlt className="h-4 w-4" /> Tanggal
                     </h4>
                     <p className="text-gray-900 font-medium">{selectedSchedule.displayDate}</p>
-                    <p className="text-sm text-gray-600 mt-1">
-                      {selectedSchedule.bookingDate?.toLocaleDateString('id-ID', {
-                        weekday: 'long',
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric'
-                      })}
-                    </p>
                   </div>
 
                   <div className="bg-blue-50 p-4 rounded-lg">
@@ -1007,14 +1012,8 @@ const SchedulesPage = () => {
                       {selectedSchedule.status === 'upcoming' && 'Akan datang'}
                       {selectedSchedule.status === 'past' && 'Selesai'}
                     </p>
-                    <p className="text-sm text-gray-600 mt-1">
-                      ✅ Jadwal telah disetujui oleh administrator
-                    </p>
-                    {selectedSchedule.approvedAt && (
-                      <p className="text-xs text-gray-500 mt-1">
-                        Disetujui: {new Date(selectedSchedule.approvedAt).toLocaleString('id-ID')}
-                      </p>
-                    )}
+                    
+                    
                   </div>
                 </div>
               </div>

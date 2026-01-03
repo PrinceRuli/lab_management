@@ -11,7 +11,7 @@ import {
   FaBars,
   FaTimes
 } from 'react-icons/fa';
-import Notifications from '../../common/Notifications';
+import AdminNotifications from '../../common/AdminNotifications'; // Pastikan path ini benartifications from '../../common/Notifications'; // Pastikan path ini benar
 import AccountSettings from '../../common/AccountSettings';
 
 const AdminDashboardLayout = ({ children }) => {
@@ -50,9 +50,9 @@ const AdminDashboardLayout = ({ children }) => {
       <div className="md:hidden fixed top-4 left-4 z-50">
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="p-2 rounded-md bg-white shadow-md text-gray-700 hover:bg-gray-100"
+          className="p-2 rounded-md bg-white shadow-md text-gray-700 hover:bg-gray-100 border border-gray-200"
         >
-          {sidebarOpen ? <FaTimes /> : <FaBars />}
+          {sidebarOpen ? <FaTimes className="h-5 w-5" /> : <FaBars className="h-5 w-5" />}
         </button>
       </div>
 
@@ -120,7 +120,7 @@ const AdminDashboardLayout = ({ children }) => {
       <div className="md:ml-64 min-h-screen flex flex-col">
         {/* Top Header (sticky) */}
         <header className="sticky top-0 z-30 bg-white shadow-sm border-b border-gray-200">
-          <div className="px-6">
+          <div className="px-4 sm:px-6">
             <div className="flex justify-between items-center h-16">
               <div>
                 <h1 className="text-xl font-semibold text-gray-900">
@@ -129,7 +129,9 @@ const AdminDashboardLayout = ({ children }) => {
                 <p className="text-sm text-gray-600">Welcome back, {currentUser?.name}</p>
               </div>
               <div className="flex items-center space-x-4">
-                <Notifications trigger={<FaBell className="h-5 w-5 text-gray-600 hover:text-gray-900 cursor-pointer" />} />
+                {/* Notifications Component - SAMA seperti di Teacher */}
+                <AdminNotifications trigger={<FaBell className="h-5 w-5 text-gray-600 hover:text-gray-900 cursor-pointer" />} />
+                
                 <div className="hidden md:flex items-center space-x-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors" onClick={() => setSettingsOpen(true)}>
                   <div className="text-right">
                     <p className="text-sm font-medium text-gray-900">{currentUser?.name}</p>
@@ -148,10 +150,35 @@ const AdminDashboardLayout = ({ children }) => {
         <main className="flex-1 p-4 md:p-6 bg-gray-50">
           {children}
         </main>
+
+        {/* Footer (optional, tambahkan jika perlu) */}
+        <footer className="bg-white border-t border-gray-200 py-4 px-6">
+          <div className="flex flex-col md:flex-row justify-between items-center">
+            <p className="text-sm text-gray-600">
+              &copy; {new Date().getFullYear()} LabSchedule Admin Dashboard
+            </p>
+            <div className="flex items-center space-x-4 mt-2 md:mt-0">
+              <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full">
+                Admin Account
+              </span>
+              <span className="text-xs text-gray-500">
+                Last login: {new Date().toLocaleDateString()}
+              </span>
+            </div>
+          </div>
+        </footer>
       </div>
       
       {settingsOpen && (
         <AccountSettings open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      )}
+
+      {/* Mobile overlay (tambahkan jika belum ada) */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black bg-opacity-50 md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
       )}
     </div>
   );

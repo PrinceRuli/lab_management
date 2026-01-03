@@ -522,7 +522,7 @@ const TeacherDashboard = () => {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Dashboard Guru</h1>
           <p className="text-gray-600">
-            Rangkuman kegiatan yang saya jalan
+            Rangkuman kegiatan dan penjadwalan laboratorium
           </p>
         </div>
         

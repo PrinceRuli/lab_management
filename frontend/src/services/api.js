@@ -169,6 +169,8 @@ export const notificationAPI = {
         unreadCount: response.data.unreadCount,
         rawData: response.data
       });
+
+      
       
       // Always return consistent format
       return {
