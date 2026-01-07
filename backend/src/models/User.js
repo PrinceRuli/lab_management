@@ -25,8 +25,20 @@ const userSchema = new mongoose.Schema({
     enum: ['admin', 'teacher', 'student'],
     default: 'student',
   },
+  teacherId: {
+    type: String,
+    unique: true,
+    sparse: true,
+  },
+  subject: {
+    type: String,
+  },
+  department: {
+    type: String,
+  },
   phone: {
     type: String,
+    maxlength: 15,
   },
   avatar: {
     type: String,

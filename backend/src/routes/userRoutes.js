@@ -4,10 +4,14 @@ const {
   getUsers,
   createUser,
   deleteUser,
+  updateProfile,
+  uploadAvatar,
 } = require('../controllers/userController');
 
 const { protect, authorize } = require('../middleware/auth');
+const upload= require('../middleware/upload');
 
+// Admin only routes
 router.get('/', protect, authorize('admin'), getUsers);
 router.post('/', protect, authorize('admin'), createUser);
 router.delete('/:id', protect, authorize('admin'), deleteUser);

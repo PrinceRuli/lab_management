@@ -11,7 +11,7 @@ const MySchedule = () => {
   const [error, setError] = useState(null);
   const [selectedSchedule, setSelectedSchedule] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
-  const [filter, setFilter] = useState('all'); // all, upcoming, completed
+  const [filter, setFilter] = useState('all');
 
 
   // ================= FETCH DATA =================

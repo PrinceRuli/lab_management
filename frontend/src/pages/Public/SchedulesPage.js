@@ -19,14 +19,17 @@ import {
   FaCheckCircle,
   FaTimesCircle,
   FaListAlt,
-  FaCalendarCheck
+  FaCalendarCheck,
+  FaEyeSlash,
+  FaHistory
 } from 'react-icons/fa';
 import { toast } from 'react-hot-toast';
 import { bookingAPI } from '../../services/api';
 
 const SchedulesPage = () => {
   // State Management
-  const [bookings, setBookings] = useState([]);
+  const [allBookings, setAllBookings] = useState([]); // SEMUA data (untuk stats)
+  const [displayBookings, setDisplayBookings] = useState([]); // Hanya yang ditampilkan (hari ini+mendatang)
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -43,7 +46,7 @@ const SchedulesPage = () => {
     { value: 'today', label: 'Hari Ini', icon: FaCalendarDay },
     { value: 'ongoing', label: 'Sedang Berlangsung', icon: FaClock },
     { value: 'upcoming', label: 'Mendatang', icon: FaClock },
-    { value: 'past', label: 'Selesai', icon: FaCheckCircle }
+    { value: 'past', label: 'Selesai', icon: FaHistory }
   ];
 
   const SORT_OPTIONS = [
@@ -59,10 +62,7 @@ const SchedulesPage = () => {
     try {
       setLoading(true);
       setError(null);
-      console.log('🔄 Memuat jadwal yang DISETUJUI untuk publik...');
-
-      const timestamp = Date.now();
-      console.log('Timestamp:', timestamp);
+      console.log('🔄 Memuat SEMUA jadwal yang DISETUJUI...');
 
       const response = await bookingAPI.getApprovedSchedules();
 
@@ -91,10 +91,31 @@ const SchedulesPage = () => {
 
       console.log(`✅ Berhasil memuat ${approvedBookings.length} booking yang DISETUJUI`);
 
-      // Process hanya booking yang approved
+      // Process SEMUA booking yang approved
       const processedBookings = processBookings(approvedBookings);
-      setBookings(processedBookings);
+      
+      // Simpan SEMUA data untuk statistik
+      setAllBookings(processedBookings);
+      
+      // Filter hanya yang akan ditampilkan (hari ini dan mendatang, TANPA yang sudah selesai kemarin)
+      const now = new Date();
+      const todayDisplayBookings = processedBookings.filter(booking => {
+        // Hanya tampilkan jika status bukan "past" (belum selesai)
+        if (booking.status !== 'past') return true;
+        
+        // Jika sudah selesai, cek apakah masih hari ini
+        const scheduleDate = booking.bookingDate || booking.combinedDateTime;
+        if (!scheduleDate) return false;
+        
+        const isToday = scheduleDate.toDateString() === now.toDateString();
+        return isToday; // Tampilkan jika masih hari ini
+      });
+      
+      setDisplayBookings(todayDisplayBookings);
       setLastUpdated(new Date());
+
+      console.log(`📊 Total semua jadwal: ${processedBookings.length}`);
+      console.log(`📈 Jadwal yang ditampilkan: ${todayDisplayBookings.length}`);
 
     } catch (err) {
       console.error('❌ Error fetching approved schedules:', err);
@@ -106,7 +127,6 @@ const SchedulesPage = () => {
     }
   };
 
-  // Process hanya booking yang approved
   // Process hanya booking yang approved - VERSI DIPERBAIKI
   const processBookings = (bookingsData) => {
     const now = new Date();
@@ -173,7 +193,7 @@ const SchedulesPage = () => {
           }
         }
 
-        // Calculate schedule status
+        // Calculate schedule status dengan akurasi tinggi
         const startTime = booking.startTime || '';
         const durationHours = booking.durationHours || 2;
         const { combinedDateTime, status } = calculateScheduleStatus(bookingDate, startTime, durationHours, now);
@@ -267,10 +287,13 @@ const SchedulesPage = () => {
 
         const endTime = new Date(combinedDateTime.getTime() + (durationHours || 2) * 60 * 60 * 1000);
 
+        // Perhitungan status yang lebih akurat
         if (now >= combinedDateTime && now <= endTime) {
           status = 'ongoing';
-        } else if (combinedDateTime < now) {
+        } else if (now > endTime) {
           status = 'past';
+        } else {
+          status = 'upcoming';
         }
       } catch (error) {
         console.error('Error calculating schedule status:', error);
@@ -408,7 +431,8 @@ const SchedulesPage = () => {
 
   // ================= FILTER & SORT =================
   const filteredBookings = useMemo(() => {
-    let result = [...bookings];
+    // Gunakan bookings yang sesuai dengan filter
+    let result = filter === 'past' ? [...allBookings] : [...displayBookings];
 
     // Apply search filter
     if (searchTerm) {
@@ -423,17 +447,22 @@ const SchedulesPage = () => {
     }
 
     // Apply status filter (hanya untuk schedule status)
-    if (filter !== 'all') {
-      if (filter === 'today') {
-        const today = new Date().toDateString();
-        result = result.filter(booking => {
-          const scheduleDate = booking.combinedDateTime?.toDateString() ||
-            booking.bookingDate?.toDateString();
-          return scheduleDate === today;
-        });
+    if (filter !== 'all' && filter !== 'today') {
+      if (filter === 'past') {
+        result = result.filter(booking => booking.status === 'past');
       } else {
         result = result.filter(booking => booking.status === filter);
       }
+    }
+
+    // Apply today filter
+    if (filter === 'today') {
+      const today = new Date().toDateString();
+      result = result.filter(booking => {
+        const scheduleDate = booking.combinedDateTime?.toDateString() ||
+          booking.bookingDate?.toDateString();
+        return scheduleDate === today;
+      });
     }
 
     // Apply sorting
@@ -474,27 +503,30 @@ const SchedulesPage = () => {
     });
 
     return result;
-  }, [bookings, searchTerm, filter, sortBy, sortOrder]);
+  }, [allBookings, displayBookings, searchTerm, filter, sortBy, sortOrder]);
 
   // Display with pagination
   const displayedBookings = filteredBookings;
 
-  // Calculate statistics - HANYA untuk approved
+  // Calculate statistics - Gunakan SEMUA data (allBookings)
   const stats = useMemo(() => {
-    const today = new Date().toDateString();
+    const now = new Date();
+    const today = now.toDateString();
 
     return {
-      all: bookings.length,
-      ongoing: bookings.filter(b => b.status === 'ongoing').length,
-      upcoming: bookings.filter(b => b.status === 'upcoming').length,
-      past: bookings.filter(b => b.status === 'past').length,
-      today: bookings.filter(b => {
+      all: allBookings.length,
+      ongoing: allBookings.filter(b => b.status === 'ongoing').length,
+      upcoming: allBookings.filter(b => b.status === 'upcoming').length,
+      past: allBookings.filter(b => b.status === 'past').length,
+      today: allBookings.filter(b => {
         const scheduleDate = b.combinedDateTime?.toDateString() ||
           b.bookingDate?.toDateString();
         return scheduleDate === today;
       }).length,
+      // Tambahan: jadwal yang ditampilkan
+      displayed: displayBookings.length
     };
-  }, [bookings]);
+  }, [allBookings, displayBookings]);
 
   // ================= HANDLERS =================
 
@@ -518,7 +550,6 @@ const SchedulesPage = () => {
     window.print();
   };
 
-  
   const openScheduleDetail = (booking) => {
     setSelectedSchedule(booking);
     setShowDetailModal(true);
@@ -535,6 +566,28 @@ const SchedulesPage = () => {
     // eslint-disable-next-line
   }, []);
 
+  // Auto-refresh setiap 1 jam untuk update status
+  useEffect(() => {
+    const statusUpdateInterval = setInterval(() => {
+      if (allBookings.length > 0) {
+        const now = new Date();
+        // Update displayBookings berdasarkan status terbaru
+        const updatedDisplayBookings = allBookings.filter(booking => {
+          if (booking.status !== 'past') return true;
+          
+          const scheduleDate = booking.bookingDate || booking.combinedDateTime;
+          if (!scheduleDate) return false;
+          
+          const isToday = scheduleDate.toDateString() === now.toDateString();
+          return isToday;
+        });
+        
+        setDisplayBookings(updatedDisplayBookings);
+      }
+    }, 60 * 60 * 1000); // Update setiap 1 jam
+    
+    return () => clearInterval(statusUpdateInterval);
+  }, [allBookings]);
 
   // ================= RENDER =================
   return (
@@ -596,16 +649,28 @@ const SchedulesPage = () => {
             </div>
           </div>
 
-          {/* Stats Cards - Hanya untuk approved */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-8">
+          {/* Stats Cards - Gunakan SEMUA data */}
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-3 mb-8">
             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">Total Jadwal</p>
+                  <p className="text-sm text-gray-600">Total Semua</p>
                   <p className="text-2xl font-bold text-gray-900">{stats.all}</p>
                 </div>
                 <div className="h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
                   <FaListAlt className="h-5 w-5 text-blue-600" />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-600">Ditampilkan</p>
+                  <p className="text-2xl font-bold text-blue-600">{stats.displayed}</p>
+                </div>
+                <div className="h-10 w-10 bg-blue-50 rounded-full flex items-center justify-center">
+                  <FaEye className="h-5 w-5 text-blue-600" />
                 </div>
               </div>
             </div>
@@ -653,7 +718,7 @@ const SchedulesPage = () => {
                   <p className="text-2xl font-bold text-gray-600">{stats.past}</p>
                 </div>
                 <div className="h-10 w-10 bg-gray-100 rounded-full flex items-center justify-center">
-                  <FaCheckCircle className="h-5 w-5 text-gray-600" />
+                  <FaHistory className="h-5 w-5 text-gray-600" />
                 </div>
               </div>
             </div>
@@ -785,14 +850,18 @@ const SchedulesPage = () => {
         )}
 
         {/* Empty State */}
-        {!loading && !error && bookings.length === 0 && (
+        {!loading && !error && displayBookings.length === 0 && (
           <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
             <FaCalendarAlt className="h-16 w-16 text-gray-400 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-gray-800 mb-2">
-              Belum ada jadwal yang disetujui
+              {allBookings.length === 0 
+                ? 'Belum ada jadwal yang disetujui' 
+                : 'Tidak ada jadwal aktif saat ini'}
             </h3>
             <p className="text-gray-600 mb-6">
-              Saat ini belum ada booking laboratorium yang telah disetujui oleh administrator.
+              {allBookings.length === 0 
+                ? 'Saat ini belum ada booking laboratorium yang telah disetujui oleh administrator.'
+                : `Semua ${stats.past} jadwal telah selesai. Tidak ada jadwal aktif hari ini atau mendatang.`}
             </p>
             <div className="space-x-3">
               <button
@@ -802,6 +871,15 @@ const SchedulesPage = () => {
                 <FaSync className="inline mr-2" />
                 Muat Ulang
               </button>
+              {allBookings.length > 0 && stats.past > 0 && (
+                <button
+                  onClick={() => setFilter('past')}
+                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 inline-block"
+                >
+                  <FaHistory className="inline mr-2" />
+                  Lihat Riwayat ({stats.past})
+                </button>
+              )}
               <Link
                 to="/"
                 className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 inline-block"
@@ -812,9 +890,25 @@ const SchedulesPage = () => {
           </div>
         )}
 
-        {/* Schedules Grid - Hanya yang approved */}
+        {/* Schedules Grid */}
         {!loading && !error && displayedBookings.length > 0 && (
           <>
+            {/* Info jika melihat riwayat */}
+            {filter === 'past' && (
+              <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
+                <div className="flex items-start gap-3">
+                  <FaHistory className="h-5 w-5 text-yellow-600 mt-0.5" />
+                  <div>
+                    <h4 className="font-medium text-yellow-800 mb-1">📚 Mode Riwayat</h4>
+                    <p className="text-yellow-700 text-sm">
+                      Menampilkan {displayedBookings.length} jadwal yang sudah selesai. 
+                      Data riwayat akan terus bertambah seiring waktu.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
               {displayedBookings.map((booking) => (
                 <div
@@ -901,20 +995,46 @@ const SchedulesPage = () => {
         )}
 
         {/* Summary Info */}
-        {!loading && !error && bookings.length > 0 && (
+        {!loading && !error && allBookings.length > 0 && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mt-8">
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
               <div className="text-center md:text-left">
-                
+                <p className="text-gray-700">
+                  Menampilkan <span className="font-bold text-blue-600">
+                    {filter === 'past' ? displayedBookings.length : stats.displayed}
+                  </span> dari{' '}
+                  <span className="font-bold text-gray-900">{stats.all}</span> jadwal yang disetujui
+                  {stats.past > 0 && (
+                    <span className="text-gray-500">
+                      {' '}({stats.past} jadwal sudah selesai)
+                    </span>
+                  )}
+                </p>
+                <p className="text-sm text-gray-500 mt-1">
+                  <span className="inline-flex items-center gap-1">
+                    <FaEyeSlash className="h-3 w-3" />
+                    Jadwal yang sudah selesai akan otomatis dihapus dari tampilan ketika berganti hari
+                  </span>
+                </p>
                 {lastUpdated && (
                   <p className="text-sm text-gray-500 mt-1">
                     Data diperbarui: {lastUpdated.toLocaleTimeString('id-ID')}
                   </p>
                 )}
               </div>
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <FaCheckCircle className="h-4 w-4 text-green-600" />
-                <span>Jadwal yang ready</span>
+              <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
+                <div className="flex items-center gap-1">
+                  <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                  <span>Berlangsung: {stats.ongoing}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                  <span>Mendatang: {stats.upcoming}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
+                  <span>Selesai: {stats.past}</span>
+                </div>
               </div>
             </div>
           </div>
@@ -957,9 +1077,6 @@ const SchedulesPage = () => {
                       <FaGraduationCap className="h-4 w-4" /> Pengajar
                     </h4>
                     <p className="text-gray-900 font-medium">{selectedSchedule.teacherName}</p>
-                    {/* {selectedSchedule.user?.email && (
-                      <p className="text-sm text-gray-600 mt-1">{selectedSchedule.user.email}</p>
-                    )} */}
                   </div>
 
                   <div className="bg-gray-50 p-4 rounded-lg">
@@ -1012,8 +1129,6 @@ const SchedulesPage = () => {
                       {selectedSchedule.status === 'upcoming' && 'Akan datang'}
                       {selectedSchedule.status === 'past' && 'Selesai'}
                     </p>
-                    
-                    
                   </div>
                 </div>
               </div>

@@ -1,4 +1,7 @@
 import axios from 'axios';
+/* import { update } from '../../../backend/src/models/User';
+import { changePassword } from '../../../backend/src/controllers/authController';
+import upload from '../../../backend/src/middleware/upload'; */
 
 
 // API Configuration
@@ -113,6 +116,39 @@ export const authAPI = {
 
   getProfile: () =>
     api.get('/auth/profile'),
+
+  updateProfile: (data) =>
+    api.put('/auth/profile', data),
+
+  changePassword: (data) =>
+    api.put('/auth/change-password', data),
+
+  uploadAvatar: (formData) =>
+    api.post('/auth/profile/avatar', formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    ),
+};
+
+export const uploadAPI = {
+  // Upload image umum
+  uploadImage: (formData) =>
+    api.post('/upload/image', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    }),
+
+  // Upload file dokumen
+  uploadDocument: (formData) =>
+    api.post('/upload/document', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    }),
 };
 
 export const userAPI = {
@@ -130,6 +166,15 @@ export const userAPI = {
 
   delete: (id) =>
     api.delete(`/users/${id}`),
+
+  uploadAvatar: (formData) =>
+    api.post('/auth/profile/avatar', formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    ),
 };
 
 export const labAPI = {
@@ -148,7 +193,6 @@ export const labAPI = {
   delete: (id) =>
     api.delete(`/labs/${id}`),
 };
-
 
 export const notificationAPI = {
   getMyNotifications: async () => {
@@ -220,6 +264,7 @@ export const notificationAPI = {
   }
 };
 
+// Booking API
 export const bookingAPI = {
 
   getApprovedSchedules: () =>

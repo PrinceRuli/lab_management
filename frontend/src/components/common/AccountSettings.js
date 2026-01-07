@@ -1,10 +1,10 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { userAPI, authAPI } from '../../services/api';
+import { /* userAPI, */ authAPI } from '../../services/api';
 import { toast } from 'react-hot-toast';
-import { 
-  FaUser, FaEnvelope, FaPhone, FaCamera, 
+import {
+  FaUser, FaEnvelope, FaPhone, FaCamera,
   FaLock, FaEye, FaEyeSlash, FaCalendar,
-  FaIdCard, /* FaMapMarkerAlt, */ FaSchool, 
+  FaIdCard, /* FaMapMarkerAlt, */ FaSchool,
   FaGraduationCap, FaSave, FaTimes
 } from 'react-icons/fa';
 
@@ -36,7 +36,7 @@ const AccountSettings = ({ open, onClose }) => {
       const localUser = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
       setUser(localUser);
       setOriginalUser(localUser);
-      
+
       // Optional: Fetch fresh data from backend
       const profileRes = await authAPI.getProfile();
       if (profileRes.data) {
@@ -69,13 +69,14 @@ const AccountSettings = ({ open, onClose }) => {
         return;
       }
 
-      const res = await userAPI.updateProfile(payload);
-      const updated = res.data;
-      
+      const res = await authAPI.updateProfile(payload);
+
       // Update localStorage
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-      window.dispatchEvent(new CustomEvent('user-updated', { detail: updated }));
-      
+      const updatedUser = { ...user, ...res.data };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedUser));
+
+      window.dispatchEvent(new CustomEvent('user-updated', { detail: updatedUser }));
+
       toast.success('Profile updated successfully');
       onClose && onClose();
     } catch (err) {
@@ -86,7 +87,7 @@ const AccountSettings = ({ open, onClose }) => {
     }
   };
 
-  const handleAvatarUpload = async (event) => {
+  const handleImageUpload = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
 
@@ -96,7 +97,7 @@ const AccountSettings = ({ open, onClose }) => {
       toast.error('Please upload JPEG, PNG, or GIF image');
       return;
     }
-    
+
     if (file.size > 5 * 1024 * 1024) { // 5MB
       toast.error('Image size should be less than 5MB');
       return;
@@ -104,9 +105,9 @@ const AccountSettings = ({ open, onClose }) => {
 
     try {
       const formData = new FormData();
-      formData.append('avatar', file);
-      
-      const res = await userAPI.uploadAvatar(user._id, formData);
+      formData.append('image', file);
+
+      const res = await authAPI.uploadAvatar(formData);
       setUser({ ...user, avatar: res.data.avatar });
       toast.success('Profile picture updated');
     } catch (error) {
@@ -154,7 +155,7 @@ const AccountSettings = ({ open, onClose }) => {
             <h2 className="text-2xl font-bold text-gray-800">Account Settings</h2>
             <p className="text-gray-600">Manage your account information and preferences</p>
           </div>
-          <button 
+          <button
             onClick={onClose}
             className="p-2 hover:bg-gray-100 rounded-full"
           >
@@ -171,11 +172,10 @@ const AccountSettings = ({ open, onClose }) => {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center w-full p-3 rounded-lg text-left transition-colors ${
-                    activeTab === tab.id 
-                      ? 'bg-blue-100 text-blue-700 border-l-4 border-blue-500' 
+                  className={`flex items-center w-full p-3 rounded-lg text-left transition-colors ${activeTab === tab.id
+                      ? 'bg-blue-100 text-blue-700 border-l-4 border-blue-500'
                       : 'hover:bg-gray-100'
-                  }`}
+                    }`}
                 >
                   <span className="mr-3">{tab.icon}</span>
                   <span className="font-medium">{tab.label}</span>
@@ -189,14 +189,22 @@ const AccountSettings = ({ open, onClose }) => {
             {/* Profile Tab */}
             {activeTab === 'profile' && (
               <div className="space-y-6">
-                {/* Avatar Section */}
+                {/* Image Section */}
                 <div className="flex items-center space-x-6">
                   <div className="relative">
                     <div className="h-24 w-24 rounded-full overflow-hidden border-4 border-white shadow-lg">
-                      <img 
-                        src={user.avatar || `https://ui-avatars.com/api/?name=${user.name}&background=4F46E5&color=fff`}
+                      <img
+                        src={
+                          user.image ||
+                          user.avatar ||
+                          `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}&background=4F46E5&color=fff`
+                        }
                         alt={user.name}
                         className="h-full w-full object-cover"
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}&background=4F46E5&color=fff`;
+                        }}
                       />
                     </div>
                     <button
@@ -210,7 +218,7 @@ const AccountSettings = ({ open, onClose }) => {
                       ref={fileInputRef}
                       className="hidden"
                       accept="image/*"
-                      onChange={handleAvatarUpload}
+                      onChange={handleImageUpload}
                     />
                   </div>
                   <div>
@@ -468,7 +476,7 @@ const AccountSettings = ({ open, onClose }) => {
           >
             Cancel
           </button>
-          
+
           <div className="flex space-x-3">
             <button
               onClick={() => {
@@ -479,7 +487,7 @@ const AccountSettings = ({ open, onClose }) => {
             >
               Reset Password
             </button>
-            
+
             <button
               onClick={handleSave}
               disabled={saving}

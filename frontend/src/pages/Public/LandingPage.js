@@ -22,6 +22,10 @@ import { toast } from 'react-hot-toast';
 import { bookingAPI } from '../../services/api';
 import labImage from '../../assets/images/lab_image.jpg';
 import contactImage from '../../assets/images/hubungi_kami.jpg';
+import artikel1 from '../../assets/images/image1.jpg';
+import artikel2 from '../../assets/images/image2.jpg';
+import artikel3 from '../../assets/images/image3.jpg';
+
 
 const LandingPage = () => {
   const [schedules, setSchedules] = useState([]);
@@ -66,7 +70,7 @@ const LandingPage = () => {
       title: 'Tips Optimalisasi Penggunaan Laboratorium',
       excerpt: 'Pelajari cara mengoptimalkan penggunaan laboratorium untuk meningkatkan efisiensi pembelajaran dan pemanfaatan sumber daya...',
       category: 'Tips & Trik',
-      image: '/assets/images/image1.jpg',
+      image: artikel1,
       date: '15 Des 2024',
       readTime: '5 menit',
     },
@@ -75,7 +79,7 @@ const LandingPage = () => {
       title: 'Teknologi Terbaru dalam Laboratorium Pendidikan',
       excerpt: 'Jelajahi teknologi terbaru yang dapat diterapkan di laboratorium pendidikan untuk meningkatkan kualitas pembelajaran...',
       category: 'Teknologi',
-      image: '/assets/images/image2.jpg',
+      image: artikel2,
       date: '12 Des 2024',
       readTime: '8 menit',
     },
@@ -84,7 +88,7 @@ const LandingPage = () => {
       title: 'Manajemen Keamanan di Laboratorium',
       excerpt: 'Panduan lengkap untuk menjaga keselamatan dan keamanan di lingkungan laboratorium...',
       category: 'Keamanan',
-      image: '/assets/images/image3.jpg',
+      image: artikel3,
       date: '10 Des 2024',
       readTime: '6 menit',
     },
@@ -576,16 +580,18 @@ const LandingPage = () => {
       </section>
 
       {/* ============ ARTIKEL SECTION ============ */}
-      <section id="artikel" className="py-20 bg-white">
+      <section id="artikel" className="py-20 bg-gradient-to-b from-white to-purple-50/30">
         <div className="container mx-auto px-6">
           <div className="text-center max-w-3xl mx-auto mb-16">
-            <div className="inline-flex items-center gap-2 mb-6 px-6 py-3 bg-gradient-to-r from-purple-100 to-pink-100 text-purple-700 rounded-full text-sm font-semibold">
+            <div className="inline-flex items-center gap-2 mb-6 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-full text-sm font-semibold shadow-lg">
               <FaNewspaper className="h-5 w-5" />
               Artikel & Berita Terbaru
             </div>
 
             <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
-              Wawasan & Pembaruan
+              <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                Wawasan & Pembaruan
+              </span>
             </h2>
 
             <p className="text-xl text-gray-600">
@@ -593,59 +599,80 @@ const LandingPage = () => {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {articles.map((article) => (
-              <div
+              <article
                 key={article.id}
-                className="group bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-500 border border-gray-200 hover:border-purple-300"
+                className="group bg-white rounded-3xl overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-500 border border-gray-200 hover:border-purple-300 hover:-translate-y-2"
               >
-                <div className="h-56 bg-gradient-to-br from-purple-50 to-pink-50 overflow-hidden relative">
-                  <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-pink-500/10 group-hover:scale-110 transition-transform duration-700"></div>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <FaNewspaper className="h-20 w-20 text-purple-300 group-hover:h-24 group-hover:w-24 transition-all duration-500" />
-                  </div>
-                  <div className="absolute top-4 left-4">
-                    <span className="px-3 py-1 bg-white/90 backdrop-blur-sm text-purple-700 text-xs font-semibold rounded-full">
+                {/* Gambar dengan efek overlay */}
+                <div className="relative h-64 overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-br from-purple-500/20 to-pink-500/20 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                  <img
+                    src={article.image}
+                    alt={article.title}
+                    className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-700"
+                  />
+
+                  {/* Badge kategori di atas gambar */}
+                  <div className="absolute top-5 left-5 z-20">
+                    <span className="px-4 py-2 bg-white/95 backdrop-blur-sm text-purple-700 text-sm font-bold rounded-full shadow-lg">
                       {article.category}
                     </span>
                   </div>
+
+                  {/* Overlay gradient di bawah */}
+                  <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-black/50 to-transparent"></div>
                 </div>
 
-                <div className="p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="text-sm text-gray-500">{article.date}</span>
-                    <span className="text-sm text-gray-400">{article.readTime}</span>
+                {/* Konten artikel */}
+                <div className="p-7">
+                  {/* Metadata */}
+                  <div className="flex items-center gap-4 mb-5 text-gray-500 text-sm">
+                    <div className="flex items-center gap-2">
+                      <FaCalendarAlt className="h-4 w-4 text-purple-500" />
+                      <span>{article.date}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <FaClock className="h-4 w-4 text-pink-500" />
+                      <span>{article.readTime}</span>
+                    </div>
                   </div>
 
-                  <h3 className="text-xl font-bold text-gray-900 mb-4 group-hover:text-purple-600 transition-colors line-clamp-2">
+                  {/* Judul */}
+                  <h3 className="text-2xl font-bold text-gray-900 mb-4 group-hover:text-purple-700 transition-colors duration-300 leading-tight">
                     {article.title}
                   </h3>
 
-                  <p className="text-gray-600 mb-6 line-clamp-3">
+                  {/* Ringkasan */}
+                  <p className="text-gray-600 mb-7 leading-relaxed line-clamp-3">
                     {article.excerpt}
                   </p>
 
-                  <div className="pt-4 border-t border-gray-100">
+                  {/* Tombol Baca */}
+                  <div className="pt-5 border-t border-gray-100">
                     <Link
                       to={`/artikel/${article.id}`}
-                      className="inline-flex items-center text-purple-600 font-semibold hover:text-purple-700 group/article-link"
+                      className="inline-flex items-center justify-center w-full py-3.5 bg-gradient-to-r from-purple-50 to-pink-50 text-purple-700 font-semibold rounded-xl hover:from-purple-100 hover:to-pink-100 hover:text-purple-800 transition-all duration-300 group/btn"
                     >
-                      Baca Artikel
-                      <FaArrowRight className="ml-3 group-hover/article-link:translate-x-2 transition-transform" />
+                      <span>Baca Artikel Lengkap</span>
+                      <FaArrowRight className="ml-3 group-hover/btn:translate-x-2 transition-transform duration-300" />
                     </Link>
                   </div>
                 </div>
-              </div>
+              </article>
             ))}
           </div>
 
+          {/* Tombol Lihat Semua */}
           <div className="text-center mt-16">
             <Link
               to="/artikel"
-              className="inline-flex items-center px-8 py-4 border-2 border-gray-300 text-gray-700 rounded-full hover:bg-gray-50 hover:border-gray-400 transition-all duration-300 font-medium"
+              className="inline-flex items-center px-10 py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-full hover:from-purple-700 hover:to-pink-700 transition-all duration-300 font-semibold text-lg shadow-xl hover:shadow-2xl hover:scale-105"
             >
-              Lihat Semua Artikel
-              <FaArrowRight className="ml-3" />
+              <FaNewspaper className="mr-3" />
+              Jelajahi Semua Artikel
+              <FaArrowRight className="ml-3 group-hover:translate-x-2 transition-transform duration-300" />
             </Link>
           </div>
         </div>

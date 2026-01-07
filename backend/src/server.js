@@ -2,6 +2,8 @@ const express = require('express');
 const dotenv = require('dotenv');
 const cors = require('cors');
 const morgan = require('morgan');
+const path = require('path');
+const fs = require('fs');
 const connectDB = require('./config/database');
 
 // Load env vars - HARUS di awal
@@ -50,6 +52,33 @@ app.use(cors({
   ],
   exposedHeaders: ['Content-Range', 'X-Content-Range']
 }));
+
+// ========== STATIC FILES ==========
+// Serve uploaded files
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/public', express.static(path.join(__dirname, 'public')));
+
+// Sync uploads to public folder (development only)
+if (process.env.NODE_ENV === 'development') {
+  const syncUploads = () => {
+    const uploadsPath = path.join(__dirname, 'uploads');
+    const publicUploadsPath = path.join(__dirname, 'public/uploads');
+    
+    if (fs.existsSync(uploadsPath)) {
+      fs.readdirSync(uploadsPath).forEach(file => {
+        const source = path.join(uploadsPath, file);
+        const dest = path.join(publicUploadsPath, file);
+        
+        if (!fs.existsSync(dest)) {
+          fs.copyFileSync(source, dest);
+        }
+      });
+    }
+  };
+  
+  // Sync setiap 5 detik
+  setInterval(syncUploads, 5000);
+}
 
 // Handle preflight requests
 app.options('*', cors());
